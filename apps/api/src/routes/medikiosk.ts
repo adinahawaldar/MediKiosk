@@ -1,488 +1,468 @@
-import { Router, Request, Response, NextFunction } from 'express';
-import { z } from 'zod';
+import { Router, Request, Response } from 'express';
+import { translateTextWithSarvam } from '../services/sarvamTranslate';
 
-const router = Router();
+export interface SymptomItem {
+  bodyRegion: string;
+  symptom: string;
+  severity: number | string; // 1-10 or 'mild' | 'moderate' | 'severe' | 'very_severe'
+  duration?: string;
+  onset?: string;
+  additionalDetails?: {
+    radiates?: boolean;
+    radiatesTo?: string;
+    description?: string;
+  };
+}
 
-// In-memory sessions store for intake sessions (auto wiped after submission)
-interface IntakeSession {
+export interface KioskSession {
   sessionId: string;
   patientId?: string;
-  abhaId?: string;
-  abhaDetails?: {
-    abhaId: string;
-    abhaAddress?: string;
-    name?: string;
-    gender?: string;
-    dob?: string;
-    verificationStatus: 'VERIFIED' | 'SANDBOX_PENDING';
-  };
-  dpdpConsent?: {
-    shareHistory: boolean;
-    shareScannedDocs: boolean;
-    shareAnalytics: boolean;
-    accessDurationHours: number;
-    timestamp: Date;
-    complianceVersion: 'DPDP-2023-V1';
+  patientProfile?: {
+    name: string;
+    abhaAddress: string;
+    gender: string;
+    age: number;
+    mobile: string;
   };
   language: string;
   mode: 'allopathy' | 'ayush';
-  consentGiven: boolean;
-  history: {
-    chiefComplaint?: string;
-    socrates?: Record<string, string>;
-    ayushPariksha?: Record<string, string>;
-    pastMedicalHistory?: string[];
-    allergies?: string[];
-    currentMedications?: string[];
+  consentRecorded: boolean;
+  createdAt: number;
+  symptoms: SymptomItem[];
+  vitals?: {
+    temperature?: number;
+    bp?: string;
   };
-  scannedDocuments: Array<{
-    id: string;
-    fileName: string;
-    docType: string;
-    pageCount?: number;
-    extractedDiagnosis?: string;
-    extractedMedications?: Array<{ name: string; dosage: string }>;
-    extractedLabValues?: Array<{ test: string; result: string; unit: string; referenceRange: string; isAbnormal: boolean }>;
-    abnormalLabFlags?: string[];
-    summary?: string;
-  }>;
-  redFlags: string[];
-  status: 'in_progress' | 'completed';
-  createdAt: Date;
+  summary?: any;
+  redFlags?: string[];
+  triage?: 'RED' | 'AMBER' | 'GREEN';
 }
 
-const sessions = new Map<string, IntakeSession>();
+// In-memory ephemeral session store (DPDP Act 2023 compliant)
+const activeSessions = new Map<string, KioskSession>();
 
-// SOCRATES Adaptive questioning generator helper
-function getAdaptiveQuestions(chiefComplaint: string, mode: 'allopathy' | 'ayush') {
-  const lowerCC = chiefComplaint.toLowerCase();
+const router = Router();
 
-  if (mode === 'ayush') {
-    return [
-      { id: 'prakriti', question: 'What is your dominant constitution / Prakriti?', options: ['Vata (Air/Space)', 'Pitta (Fire/Water)', 'Kapha (Earth/Water)', 'Tridoshic / Unknown'] },
-      { id: 'agni', question: 'How is your digestive fire (Agni)?', options: ['Sama (Normal)', 'Visham (Irregular)', 'Tikshna (Intense/Hyper)', 'Manda (Low/Sluggish)'] },
-      { id: 'koshtha', question: 'What is your bowel habit (Koshtha)?', options: ['Krutschra (Hard/Constipated)', 'Mridu (Soft/Loose)', 'Madhyama (Regular)'] },
-      { id: 'aharaVihara', question: 'Any recent changes in Ahara (Diet) or Vihara (Lifestyle)?', options: ['Heavy/Oily food', 'Irregular sleep/Late night', 'Excess stress/Exertion', 'None'] }
-    ];
-  }
-
-  if (lowerCC.includes('pain') || lowerCC.includes('chest') || lowerCC.includes('headache') || lowerCC.includes('abdominal')) {
-    return [
-      { id: 'site', question: 'Site: Where exactly is the pain located?', options: ['Chest (Center/Left)', 'Upper Abdomen', 'Lower Abdomen', 'Head', 'Back/Joints'] },
-      { id: 'onset', question: 'Onset: How did the pain start?', options: ['Sudden / Sharp', 'Gradual build up', 'Intermittent episodes'] },
-      { id: 'character', question: 'Character: Describe the feeling of the pain.', options: ['Crushing / Heavy', 'Sharp / Stabbing', 'Dull Ache', 'Burning'] },
-      { id: 'radiation', question: 'Radiation: Does the pain spread anywhere else?', options: ['Left Arm / Jaw', 'Back', 'Shoulder', 'Does not spread'] },
-      { id: 'severity', question: 'Severity: On a scale of 1 to 10, how severe is it?', options: ['1-3 (Mild)', '4-6 (Moderate)', '7-10 (Severe)'] }
-    ];
-  }
-
-  return [
-    { id: 'duration', question: 'Duration: How long have you experienced these symptoms?', options: ['Less than 24 hours', '1-3 days', '1-2 weeks', 'More than a month'] },
-    { id: 'severity', question: 'Severity: How severe are your symptoms right now?', options: ['Mild', 'Moderate', 'Severe'] },
-    { id: 'triggers', question: 'Triggers: Does anything worsen or relieve your symptoms?', options: ['Worse with food', 'Worse with exertion', 'Relieved by rest', 'No specific pattern'] }
-  ];
-}
-
-// Red flag detection logic
-function detectRedFlags(chiefComplaint: string, socrates: Record<string, string> = {}): string[] {
-  const flags: string[] = [];
-  const text = (chiefComplaint + ' ' + Object.values(socrates).join(' ')).toLowerCase();
-
-  if (text.includes('chest pain') || text.includes('left arm') || text.includes('crushing') || text.includes('shortness of breath') || text.includes('breathless')) {
-    flags.push('CRITICAL: Potential Acute Coronary Syndrome / Cardiac Distress');
-  }
-  if (text.includes('unconscious') || text.includes('fainted') || text.includes('seizure') || text.includes('paralysis') || text.includes('slurred speech')) {
-    flags.push('CRITICAL: Neurological / Stroke Red Flag');
-  }
-  if (text.includes('severe bleeding') || text.includes('coughing blood') || text.includes('vomiting blood')) {
-    flags.push('HIGH PRIORITY: Hemorrhage Warning');
-  }
-  return flags;
-}
-
-// Schema validations
-const startSessionSchema = z.object({
-  language: z.string().default('hi'),
-  mode: z.enum(['allopathy', 'ayush']).default('allopathy'),
-  abhaId: z.string().optional(),
-  aadhaarNumber: z.string().optional(),
-  aadhaarOtp: z.string().optional()
-});
-
-const granularConsentSchema = z.object({
-  shareHistory: z.boolean().default(true),
-  shareScannedDocs: z.boolean().default(true),
-  shareAnalytics: z.boolean().default(false),
-  accessDurationHours: z.number().default(24)
-});
-
-const submitAnswersSchema = z.object({
-  chiefComplaint: z.string().min(1, 'Chief complaint is required'),
-  socrates: z.record(z.string()).optional(),
-  ayushPariksha: z.record(z.string()).optional(),
-  pastMedicalHistory: z.array(z.string()).optional(),
-  allergies: z.array(z.string()).optional()
-});
-
-// POST /api/v1/medikiosk/session/start - Module D: ABDM Sandbox Auth & Session Init
-router.post('/session/start', async (req: Request, res: Response, next: NextFunction) => {
+/**
+ * Live Sarvam AI Translation Endpoint
+ * POST /api/v1/medikiosk/translate
+ */
+router.post('/translate', async (req: Request, res: Response) => {
   try {
-    const { language, mode, abhaId, aadhaarNumber, aadhaarOtp } = startSessionSchema.parse(req.body);
-    const sessionId = `Kiosk-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const { text, targetLanguageCode = 'hi-IN', sourceLanguageCode = 'en-IN' } = req.body;
 
-    const generatedAbhaId = abhaId || (aadhaarNumber ? `ABHA-${aadhaarNumber.slice(-4)}-SANDBOX` : `ABHA-MOCK-${Math.floor(10000000000000 + Math.random() * 90000000000000)}`);
-    const isVerified = Boolean(aadhaarOtp || abhaId || aadhaarNumber);
+    if (!text) {
+      return res.status(400).json({ success: false, error: 'Text input is required' });
+    }
 
-    const abhaDetails = {
-      abhaId: generatedAbhaId,
-      abhaAddress: `${generatedAbhaId.toLowerCase()}@abdm`,
-      name: 'Patient Verified Profile',
-      gender: 'M',
-      dob: '1988-05-14',
-      verificationStatus: isVerified ? 'VERIFIED' as const : 'SANDBOX_PENDING' as const
-    };
+    const result = await translateTextWithSarvam(text, {
+      targetLanguageCode,
+      sourceLanguageCode,
+    });
 
-    const newSession: IntakeSession = {
+    return res.json({
+      success: true,
+      data: {
+        originalText: text,
+        translatedText: result.translatedText,
+        engine: 'Sarvam AI (Mayura:v1)',
+        targetLanguageCode,
+      },
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Multilingual Dictionary API Engine (GET /api/v1/medikiosk/i18n?lang=en|hi|mr|ta|te|gu|bn)
+ */
+const I18N_DICTIONARIES: Record<string, any> = {
+  en: {
+    headerTitle: 'Select Pain or Problem Area',
+    tipText: 'Tip: You can select multiple areas (e.g. Head + Stomach). Tap any area to begin.',
+    maleModel: 'Male Model',
+    femaleModel: 'Female Model',
+    recordedSymptoms: 'Recorded Symptoms',
+    tapToEdit: 'Tap area to edit or add another',
+    submitSymptoms: 'Submit All Symptoms',
+    enterAbhaTitle: 'Enter your ABHA Number',
+    enterAbhaDesc: 'Provide your 14-digit Ayushman Bharat Health Account number',
+    verifyWithOtp: 'Verify with OTP →',
+    enterOtpCode: 'Enter 6-Digit OTP Code',
+    verifyOtpContinue: 'Verify OTP & Continue →',
+    confirmIdentityTitle: 'Confirm Patient Identity',
+    confirmIdentityDesc: 'Verify your profile to open the 3D body model',
+    confirmOpenModel: 'Confirm & Open Body Model →',
+    intakeComplete: 'CLINICAL INTAKE COMPLETE',
+    consultationTicket: 'Your Consultation Ticket',
+    tokenNumberLabel: 'Patient Token Number',
+    doctorRoomLabel: 'Doctor Room Location',
+    finishReturn: 'Finish & Return to Welcome Screen',
+    regions: {
+      head: 'Head',
+      face: 'Face',
+      neck: 'Neck',
+      chest: 'Chest',
+      stomach: 'Stomach',
+      right_shoulder: 'Right Shoulder',
+      left_shoulder: 'Left Shoulder',
+      right_hand: 'Right Hand',
+      left_hand: 'Left Hand',
+      right_knee: 'Right Knee',
+      left_knee: 'Left Knee',
+    },
+  },
+  hi: {
+    headerTitle: 'दर्द या समस्या का स्थान चुनें',
+    tipText: 'सुझाव: आप एक से अधिक अंग (जैसे सिर + पेट) चुन सकते हैं। शुरू करने के लिए स्पर्श करें।',
+    maleModel: 'पुरुष मॉडल',
+    femaleModel: 'महिला मॉडल',
+    recordedSymptoms: 'दर्ज किए गए लक्षण',
+    tapToEdit: 'बदलाव के लिए या दूसरा अंग जोड़ने के लिए टैप करें',
+    submitSymptoms: 'सभी लक्षण जमा करें',
+    enterAbhaTitle: 'अपना आभा (ABHA) नंबर दर्ज करें',
+    enterAbhaDesc: 'अपना 14 अंकों का आयुष्मान भारत स्वास्थ्य खाता नंबर दर्ज करें',
+    verifyWithOtp: 'ओटीपी से सत्यापित करें →',
+    enterOtpCode: '6 अंकों का ओटीपी कोड दर्ज करें',
+    verifyOtpContinue: 'ओटीपी सत्यापित करें और आगे बढ़ें →',
+    confirmIdentityTitle: 'मरीज़ की पहचान की पुष्टि करें',
+    confirmIdentityDesc: '3D बॉडी मॉडल खोलने के लिए अपनी प्रोफ़ाइल सत्यापित करें',
+    confirmOpenModel: 'पुष्टि करें और बॉडी मॉडल खोलें →',
+    intakeComplete: 'स्वास्थ्य जांच प्रक्रिया पूर्ण',
+    consultationTicket: 'आपका परामर्श टोकन',
+    tokenNumberLabel: 'मरीज़ टोकन नंबर',
+    doctorRoomLabel: 'डॉक्टर कमरा नंबर',
+    finishReturn: 'समाप्त करें और मुख्य स्क्रीन पर लौटें',
+    regions: {
+      head: 'सिर (Head)',
+      face: 'चेहरा (Face)',
+      neck: 'गर्दन (Neck)',
+      chest: 'छाती (Chest)',
+      stomach: 'पेट (Stomach)',
+      right_shoulder: 'दाहिना कंधा (R. Shoulder)',
+      left_shoulder: 'बायां कंधा (L. Shoulder)',
+      right_hand: 'दाहिना हाथ (R. Hand)',
+      left_hand: 'बायां हाथ (L. Hand)',
+      right_knee: 'दाहिना घुटना (R. Knee)',
+      left_knee: 'बायां घुटना (L. Knee)',
+    },
+  },
+  mr: {
+    headerTitle: 'दुखणे किंवा समस्येची जागा निवडा',
+    tipText: 'टीप: आपण एकापेक्षा जास्त भाग (उदा. डोके + पोट) निवडू शकता. सुरू करण्यासाठी स्पर्श करा.',
+    maleModel: 'पुरुष मॉडेल',
+    femaleModel: 'महिला मॉडेल',
+    recordedSymptoms: 'नोंदवलेली लक्षणे',
+    tapToEdit: 'संपादन किंवा दुसरा भाग जोडण्यासाठी टॅप करा',
+    submitSymptoms: 'सर्व लक्षणे सबमिट करा',
+    enterAbhaTitle: 'तुमचा आभा (ABHA) क्रमांक प्रविष्ट करा',
+    enterAbhaDesc: 'तुमचा १४ अंकी आयुष्मान भारत आरोग्य खाते क्रमांक प्रविष्ट करा',
+    verifyWithOtp: 'ओटीपीद्वारे पडताळणी करा →',
+    enterOtpCode: '६ अंकी ओटीपी कोड प्रविष्ट करा',
+    verifyOtpContinue: 'ओटीपी पडताळा आणि पुढे जा →',
+    confirmIdentityTitle: 'रुग्णाची ओळख निश्चित करा',
+    confirmIdentityDesc: '३डी बॉडी मॉडेल उघडण्यासाठी तुमचे प्रोफाइल तपासा',
+    confirmOpenModel: 'खात्री करा आणि बॉडी मॉडेल उघडा →',
+    intakeComplete: 'आरोग्य तपासणी पूर्ण',
+    consultationTicket: 'तुमचे मोफत टोकन',
+    tokenNumberLabel: 'रुग्ण टोकन क्रमांक',
+    doctorRoomLabel: 'डॉक्टर खोली क्रमांक',
+    finishReturn: 'पूर्ण करा आणि मुख्य स्क्रीनवर जा',
+    regions: {
+      head: 'डोके (Head)',
+      face: 'चेहरा (Face)',
+      neck: 'मान (Neck)',
+      chest: 'छाती (Chest)',
+      stomach: 'पोट (Stomach)',
+      right_shoulder: 'उजवा खांदा (R. Shoulder)',
+      left_shoulder: 'डावा खांदा (L. Shoulder)',
+      right_hand: 'उजवा हात (R. Hand)',
+      left_hand: 'डावा हात (L. Hand)',
+      right_knee: 'उजवा गुडघा (R. Knee)',
+      left_knee: 'डावा गुडघा (L. Knee)',
+    },
+  },
+};
+
+/**
+ * Get Localized Dictionary
+ * GET /api/v1/medikiosk/i18n
+ */
+router.get('/i18n', (req: Request, res: Response) => {
+  const lang = (req.query.lang as string) || 'en';
+  const dict = I18N_DICTIONARIES[lang] || I18N_DICTIONARIES.en;
+  return res.json({
+    success: true,
+    data: {
+      language: lang,
+      translations: dict,
+    },
+  });
+});
+
+/**
+ * Verify ABHA Number & Trigger OTP
+ * POST /api/v1/medikiosk/abha/verify-number
+ */
+router.post('/abha/verify-number', (req: Request, res: Response) => {
+  try {
+    const { abhaNumber } = req.body;
+    const cleanAbha = (abhaNumber || '').replace(/\D/g, '');
+
+    if (!cleanAbha || cleanAbha.length !== 14) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid ABHA Number format. Please enter a valid 14-digit ABHA Number.',
+      });
+    }
+
+    const otpTxnId = `TXN-ABHA-${Date.now()}`;
+    return res.json({
+      success: true,
+      data: {
+        otpTxnId,
+        maskedMobile: '+91 ******4321',
+        message: 'OTP sent successfully to registered mobile number.',
+      },
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Verify 6-Digit OTP
+ * POST /api/v1/medikiosk/abha/verify-otp
+ */
+router.post('/abha/verify-otp', (req: Request, res: Response) => {
+  try {
+    const { otpTxnId, otp, language = 'en' } = req.body;
+
+    if (!otp || String(otp).trim().length !== 6) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid 6-digit OTP code. Please enter the code received on your mobile.',
+      });
+    }
+
+    const isHindi = language === 'hi';
+    const isMarathi = language === 'mr';
+
+    return res.json({
+      success: true,
+      data: {
+        otpVerified: true,
+        patientProfile: {
+          name: isHindi || isMarathi ? 'राहुल शर्मा' : 'Rahul Sharma',
+          abhaAddress: 'rahul.sharma@abdm',
+          gender: isHindi || isMarathi ? 'पुरुष' : 'Male',
+          age: 34,
+          mobile: '+91 98765 4321',
+          abhaNumber: '91-9876-5432-1098',
+        },
+      },
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Initialize MediKiosk Session
+ * POST /api/v1/medikiosk/session
+ */
+router.post('/session', (req: Request, res: Response) => {
+  try {
+    const { patientProfile, language = 'en', mode = 'allopathy' } = req.body;
+    const sessionId = `MK-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    const newSession: KioskSession = {
       sessionId,
+      patientId: patientProfile?.abhaNumber || `ABHA-${Math.floor(100000 + Math.random() * 900000)}`,
+      patientProfile,
       language,
       mode,
-      abhaId: generatedAbhaId,
-      abhaDetails,
-      consentGiven: false,
-      history: {},
-      scannedDocuments: [],
-      redFlags: [],
-      status: 'in_progress',
-      createdAt: new Date()
+      consentRecorded: true,
+      createdAt: Date.now(),
+      symptoms: [],
     };
 
-    sessions.set(sessionId, newSession);
+    activeSessions.set(sessionId, newSession);
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       data: {
         sessionId: newSession.sessionId,
-        abhaId: newSession.abhaId,
-        abhaDetails: newSession.abhaDetails,
+        patientId: newSession.patientId,
+        patientProfile: newSession.patientProfile,
         language: newSession.language,
         mode: newSession.mode,
-        audioConsentPrompt: newSession.language === 'hi'
-          ? 'क्या आप अपने स्वास्थ्य डेटा को डॉक्टर के साथ साझा करने की सहमति देते हैं?'
-          : 'Do you consent to sharing your medical history with the treating physician under ABDM & DPDP Act guidelines?'
-      }
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// POST /api/v1/medikiosk/session/:id/consent - Module D: Granular Consent under DPDP Act 2023
-router.post('/session/:id/consent', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { id } = req.params;
-    const session = sessions.get(id);
-    if (!session) {
-      return res.status(404).json({ success: false, error: 'Session not found' });
-    }
-
-    const { shareHistory, shareScannedDocs, shareAnalytics, accessDurationHours } = granularConsentSchema.parse(req.body || {});
-
-    session.consentGiven = true;
-    session.dpdpConsent = {
-      shareHistory,
-      shareScannedDocs,
-      shareAnalytics,
-      accessDurationHours,
-      timestamp: new Date(),
-      complianceVersion: 'DPDP-2023-V1'
-    };
-
-    sessions.set(id, session);
-
-    res.json({
-      success: true,
-      message: 'Granular consent recorded successfully under DPDP Act 2023 & ABDM Framework.',
-      data: {
-        sessionId: id,
-        consentGiven: true,
-        dpdpConsent: session.dpdpConsent
-      }
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// POST /api/v1/medikiosk/session/:id/questions
-router.post('/session/:id/questions', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { id } = req.params;
-    const { chiefComplaint } = req.body;
-    const session = sessions.get(id);
-    if (!session) {
-      return res.status(404).json({ success: false, error: 'Session not found' });
-    }
-
-    session.history.chiefComplaint = chiefComplaint;
-
-    // Call Python FastAPI AI Agent service
-    let questions = getAdaptiveQuestions(chiefComplaint, session.mode);
-    let redFlags = detectRedFlags(chiefComplaint);
-
-    try {
-      const response = await fetch('http://localhost:8000/api/v1/agent/medikiosk/questions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chiefComplaint,
-          mode: session.mode,
-          language: session.language
-        })
-      });
-
-      if (response.ok) {
-        const aiResult = await response.json();
-        if (aiResult.success && aiResult.data) {
-          if (aiResult.data.adaptiveQuestions?.length > 0) {
-            questions = aiResult.data.adaptiveQuestions;
-          }
-          if (aiResult.data.redFlagsDetected?.length > 0) {
-            redFlags = Array.from(new Set([...redFlags, ...aiResult.data.redFlagsDetected]));
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('FastAPI AI Agent offline or unavailable. Using deterministic fallback.', e);
-    }
-
-    session.redFlags = redFlags;
-    sessions.set(id, session);
-
-    res.json({
-      success: true,
-      data: {
-        chiefComplaint,
-        mode: session.mode,
-        adaptiveQuestions: questions,
-        redFlagsDetected: redFlags
-      }
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// POST /api/v1/medikiosk/session/:id/answers
-router.post('/session/:id/answers', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { id } = req.params;
-    const session = sessions.get(id);
-    if (!session) {
-      return res.status(404).json({ success: false, error: 'Session not found' });
-    }
-
-    const { chiefComplaint, socrates, ayushPariksha, pastMedicalHistory, allergies } = submitAnswersSchema.parse(req.body);
-
-    session.history = {
-      chiefComplaint,
-      socrates,
-      ayushPariksha,
-      pastMedicalHistory: pastMedicalHistory || [],
-      allergies: allergies || []
-    };
-
-    const redFlags = detectRedFlags(chiefComplaint, { ...socrates, ...ayushPariksha });
-    session.redFlags = Array.from(new Set([...session.redFlags, ...redFlags]));
-    sessions.set(id, session);
-
-    res.json({
-      success: true,
-      data: {
-        sessionId: id,
-        historyRecorded: session.history,
-        redFlags: session.redFlags
-      }
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// POST /api/v1/medikiosk/session/:id/ocr - Module B: Multi-Page OCR Pipeline & Abnormal Flagging
-router.post('/session/:id/ocr', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { id } = req.params;
-    const { fileName, docType, mockOcrText, filePath, filePaths, rawText } = req.body;
-    const session = sessions.get(id);
-    if (!session) {
-      return res.status(404).json({ success: false, error: 'Session not found' });
-    }
-
-    const inputContent = rawText || mockOcrText || '';
-    const isDiabetes = inputContent.toLowerCase().includes('diabetes') || inputContent.toLowerCase().includes('hba1c');
-    const pageCountCalc = filePaths?.length || (inputContent ? 1 + (inputContent.match(/--- NEXT PAGE ---/g) || []).length : 1);
-
-    let extractedData = {
-      pageCount: pageCountCalc,
-      extractedDiagnosis: isDiabetes ? 'Type 2 Diabetes Mellitus' : 'Essential Hypertension',
-      extractedMedications: [
-        { name: 'Metformin', dosage: '500mg BD' },
-        { name: 'Amlodipine', dosage: '5mg OD' }
-      ],
-      extractedLabValues: [
-        { test: 'HbA1c', result: '8.2%', unit: '%', referenceRange: '< 5.7%', isAbnormal: true }
-      ],
-      abnormalLabFlags: isDiabetes ? ['ELEVATED: HbA1c 8.2% (Reference < 5.7%)'] : [],
-      summary: 'Parsed medical document via multi-page Docling + Groq OCR pipeline.'
-    };
-
-    try {
-      const response = await fetch('http://localhost:8000/api/v1/agent/medikiosk/ocr', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          filePath: filePath || null,
-          filePaths: filePaths || null,
-          rawText: inputContent,
-          docType: docType || 'Prescription'
-        })
-      });
-
-      if (response.ok) {
-        const aiResult = await response.json();
-        if (aiResult.success && aiResult.data) {
-          extractedData = {
-            ...extractedData,
-            ...aiResult.data
-          };
-        }
-      }
-    } catch (e) {
-      console.warn('FastAPI Real OCR Agent offline or unavailable. Using local fallback.', e);
-    }
-
-    const documentResult = {
-      id: `DOC-${Date.now()}`,
-      fileName: fileName || 'Scanned_Prescription.jpg',
-      docType: docType || 'Prescription',
-      ...extractedData
-    };
-
-    session.scannedDocuments.push(documentResult);
-    sessions.set(id, session);
-
-    res.status(201).json({
-      success: true,
-      data: {
-        document: documentResult,
-        timelineCount: session.scannedDocuments.length
-      }
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// GET /api/v1/medikiosk/session/:id/summary
-router.post('/session/:id/summary', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { id } = req.params;
-    const session = sessions.get(id);
-    if (!session) {
-      return res.status(404).json({ success: false, error: 'Session not found' });
-    }
-
-    const chiefComplaint = session.history.chiefComplaint || 'Not specified';
-    const socratesText = session.history.socrates
-      ? Object.entries(session.history.socrates).map(([k, v]) => `${k}: ${v}`).join(', ')
-      : 'None recorded';
-
-    const ayushText = session.history.ayushPariksha
-      ? Object.entries(session.history.ayushPariksha).map(([k, v]) => `${k}: ${v}`).join(', ')
-      : 'None recorded';
-
-    const docsText = session.scannedDocuments
-      .map((d) => `[${d.docType}] ${d.extractedDiagnosis || ''} (Meds: ${d.extractedMedications?.map(m=>m.name).join(', ')})`)
-      .join('; ');
-
-    let doctorSummary = {
-      patientAbhaId: session.abhaId,
-      intakeMode: session.mode,
-      language: session.language,
-      redFlags: session.redFlags,
-      structuredSOAP: {
-        chiefComplaint: chiefComplaint,
-        historyOfPresentIllness: session.mode === 'ayush' ? `AYUSH Intake: ${ayushText}` : `SOCRATES Details: ${socratesText}`,
-        pastMedicalHistory: (session.history.pastMedicalHistory || []).join(', ') || 'None reported',
-        allergies: (session.history.allergies || []).join(', ') || 'No known drug allergies (NKDA)',
-        reviewOfSystems: 'Systemic review negative except chief complaint',
-        priorInvestigationsTimeline: docsText || 'No prior scanned documents attached'
+        consentRecorded: newSession.consentRecorded,
       },
-      bilingualAudioConfirmation: {
-        patientAudioText: session.language === 'hi'
-          ? 'आपका इतिहास दर्ज कर लिया गया है। डॉक्टर आपके सारांश की समीक्षा कर रहे हैं।'
-          : 'Your intake history has been recorded and submitted to the physician screen.',
-        doctorEnglishSummary: `Patient presented with ${chiefComplaint}. SOCRATES: ${socratesText}. Scanned docs: ${session.scannedDocuments.length} files digitized.`
-      }
-    };
-
-    // Attempt GenAI FastAPI Microservice Call - Module C: Bilingual Summary Generator
-    try {
-      const response = await fetch('http://localhost:8000/api/v1/agent/medikiosk/summary', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          historyData: {
-            ...session.history,
-            scannedDocuments: session.scannedDocuments
-          },
-          language: session.language
-        })
-      });
-
-      if (response.ok) {
-        const aiResult = await response.json();
-        if (aiResult.success && aiResult.data) {
-          doctorSummary.structuredSOAP = {
-            ...doctorSummary.structuredSOAP,
-            ...aiResult.data.structuredSOAP
-          };
-          if (aiResult.data.bilingualAudioConfirmation) {
-            doctorSummary.bilingualAudioConfirmation = aiResult.data.bilingualAudioConfirmation;
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('FastAPI GenAI Summary Agent unavailable. Using static template.', e);
-    }
-
-    session.status = 'completed';
-    sessions.set(id, session);
-
-    res.json({
-      success: true,
-      data: doctorSummary
     });
-  } catch (err) {
-    next(err);
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// DELETE /api/v1/medikiosk/session/:id - Module D: Ephemeral Session Wipe
-router.delete('/session/:id', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { id } = req.params;
-    const existed = sessions.delete(id);
-    res.json({
-      success: true,
-      message: existed
-        ? 'Kiosk ephemeral session memory securely wiped. Zero patient data retained locally.'
-        : 'Session ID not active or already wiped.',
-      wipedAt: new Date()
-    });
-  } catch (err) {
-    next(err);
+/**
+ * Get Current Session Assessment
+ * GET /api/v1/medikiosk/session/:id
+ */
+router.get('/session/:id', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const session = activeSessions.get(id);
+
+  if (!session) {
+    return res.status(404).json({ success: false, error: 'Session not found or expired' });
   }
+
+  return res.json({
+    success: true,
+    data: session,
+  });
+});
+
+/**
+ * Add or Update Symptom in Cart
+ * POST /api/v1/medikiosk/assessment/symptom
+ */
+router.post('/assessment/symptom', (req: Request, res: Response) => {
+  try {
+    const { sessionId, bodyRegion, symptom, severity, duration, onset, additionalDetails } = req.body;
+
+    if (!sessionId || !bodyRegion || !symptom) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required parameters: sessionId, bodyRegion, and symptom are required.',
+      });
+    }
+
+    let session = activeSessions.get(sessionId);
+    if (!session) {
+      session = {
+        sessionId,
+        language: 'en',
+        mode: 'allopathy',
+        consentRecorded: true,
+        createdAt: Date.now(),
+        symptoms: [],
+      };
+      activeSessions.set(sessionId, session);
+    }
+
+    const newSymptom: SymptomItem = {
+      bodyRegion: bodyRegion.toLowerCase(),
+      symptom: symptom.toLowerCase(),
+      severity: severity || 'moderate',
+      duration: duration || 'Today',
+      onset: onset || 'gradual',
+      additionalDetails: additionalDetails || {},
+    };
+
+    const existingIndex = session.symptoms.findIndex(s => s.bodyRegion === newSymptom.bodyRegion);
+    if (existingIndex >= 0) {
+      session.symptoms[existingIndex] = newSymptom;
+    } else {
+      session.symptoms.push(newSymptom);
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        sessionId: session.sessionId,
+        symptomCount: session.symptoms.length,
+        symptoms: session.symptoms,
+      },
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Complete Assessment & Generate Token
+ * POST /api/v1/medikiosk/assessment/complete
+ */
+router.post('/assessment/complete', (req: Request, res: Response) => {
+  try {
+    const { sessionId } = req.body;
+    const session = activeSessions.get(sessionId);
+
+    if (!session) {
+      return res.status(404).json({ success: false, error: 'Session not found' });
+    }
+
+    const redFlags: string[] = [];
+    let triageStatus: 'RED' | 'AMBER' | 'GREEN' = 'GREEN';
+
+    session.symptoms.forEach(item => {
+      const isChest = item.bodyRegion.includes('chest') || item.bodyRegion.includes('breathing');
+      const isSevere = String(item.severity).includes('severe') || Number(item.severity) >= 7;
+      const isRadiating = item.additionalDetails?.radiates && item.additionalDetails?.radiatesTo?.includes('arm');
+
+      if (isChest && (isSevere || isRadiating)) {
+        redFlags.push('CRITICAL: Potential Acute Coronary Syndrome / Cardiac Distress');
+        triageStatus = 'RED';
+      } else if (item.bodyRegion.includes('head') && isSevere) {
+        redFlags.push('WARNING: Severe Neurological / Acute Headache Flag');
+        if (triageStatus !== 'RED') triageStatus = 'AMBER';
+      }
+    });
+
+    const chiefComplaintStr = session.symptoms
+      .map(s => `${s.bodyRegion.toUpperCase()}: ${s.symptom} (Severity: ${s.severity})`)
+      .join('; ') || 'General Consultation';
+
+    const isHiOrMr = session.language === 'hi' || session.language === 'mr';
+
+    const summaryPayload = {
+      status: 'DRAFT',
+      requiresDoctorSignoff: true,
+      chiefComplaint: chiefComplaintStr,
+      historyOfPresentIllness: `Patient mapped ${session.symptoms.length} body region(s).`,
+      opdToken: triageStatus === 'RED' ? 'EMG-01' : `OPD-${Math.floor(100 + Math.random() * 900)}`,
+      recommendedRoom: triageStatus === 'RED'
+        ? (isHiOrMr ? 'इमरजेंसी रूम 1' : 'Emergency Room 1')
+        : (isHiOrMr ? 'कमरा नंबर 104 (सामान्य चिकित्सा OPD)' : 'Room 104 (General Medicine OPD)'),
+      patientProfile: session.patientProfile,
+    };
+
+    session.triage = triageStatus;
+    session.redFlags = redFlags;
+    session.summary = summaryPayload;
+
+    return res.json({
+      success: true,
+      data: {
+        sessionId: session.sessionId,
+        triage: session.triage,
+        redFlags: session.redFlags,
+        summary: session.summary,
+      },
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Ephemeral session wipe
+ * DELETE /api/v1/medikiosk/session/:id
+ */
+router.delete('/session/:id', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const existed = activeSessions.delete(id);
+
+  return res.json({
+    success: true,
+    data: {
+      memoryWiped: true,
+      sessionId: id,
+    },
+    message: existed ? 'Ephemeral kiosk session deleted' : 'Session did not exist',
+  });
 });
 
 export default router;

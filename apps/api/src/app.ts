@@ -1,17 +1,9 @@
+import dotenv from 'dotenv';
+dotenv.config();
 import express from 'express';
 import cors from 'cors';
 import healthRouter from './routes/health.js';
-import patientRouter from './routes/patient.js';
-import authRouter from './routes/auth.js';
-import appointmentRouter from './routes/appointment.js';
-import checkinRouter from './routes/checkin.js';
-import triageRouter from './routes/triage.js';
-import consultationRouter from './routes/consultation.js';
-import documentationRouter from './routes/documentation.js';
-import diagnosticsRouter from './routes/diagnostics.js';
-import billingRouter from './routes/billing.js';
-import dischargeRouter from './routes/discharge.js';
-import analyticsRouter from './routes/analytics.js';
+import voiceRouter from './routes/voice.js';
 import medikioskRouter from './routes/medikiosk.js';
 
 const app = express();
@@ -27,17 +19,7 @@ app.use(express.json());
 
 // Routes
 app.use('/api/v1', healthRouter);
-app.use('/api/v1', patientRouter);
-app.use('/api/v1', authRouter);
-app.use('/api/v1', appointmentRouter);
-app.use('/api/v1', checkinRouter);
-app.use('/api/v1', triageRouter);
-app.use('/api/v1', consultationRouter);
-app.use('/api/v1', documentationRouter);
-app.use('/api/v1', diagnosticsRouter);
-app.use('/api/v1', billingRouter);
-app.use('/api/v1', dischargeRouter);
-app.use('/api/v1', analyticsRouter);
+app.use('/api/v1/voice', voiceRouter);
 app.use('/api/v1/medikiosk', medikioskRouter);
 
 // Global error handler
