@@ -316,51 +316,39 @@ export const BodyModel: React.FC<BodyModelProps> = ({
                   />
                 </div>
 
-                {/* Left Floating Glass Label */}
+                {/* Left Pointer Line & Unboxed Text Label */}
                 {pin.labelSide === 'left' && (
-                  <div className="absolute right-7 flex items-center space-x-1.5 pointer-events-none z-10">
-                    <div className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shadow-sm border transition-all duration-200 ${
-                      isSelected || symptom
-                        ? 'bg-slate-900 text-white border-slate-900 shadow-md'
-                        : isHovered
-                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
-                        : 'bg-white/95 text-slate-800 border-slate-200/90 hover:border-slate-400'
+                  <div className="absolute right-7 flex items-center space-x-0 pointer-events-none z-10 pr-0.5">
+                    <span className={`text-xs font-bold whitespace-nowrap tracking-tight ${
+                      isSelected || symptom ? 'text-indigo-600 font-extrabold' : 'text-slate-900'
                     }`}>
                       {displayName} {symptom ? `• ${symptom.symptom}` : ''}
-                    </div>
-                    <div className="w-5 h-[1.5px] bg-slate-400/80" />
+                    </span>
+                    <div className="w-5 h-[1.5px] bg-slate-800 ml-1.5" />
                   </div>
                 )}
 
-                {/* Right Floating Glass Label */}
+                {/* Right Pointer Line & Unboxed Text Label */}
                 {pin.labelSide === 'right' && (
-                  <div className="absolute left-7 flex items-center space-x-1.5 pointer-events-none z-10">
-                    <div className="w-5 h-[1.5px] bg-slate-400/80" />
-                    <div className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shadow-sm border transition-all duration-200 ${
-                      isSelected || symptom
-                        ? 'bg-slate-900 text-white border-slate-900 shadow-md'
-                        : isHovered
-                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
-                        : 'bg-white/95 text-slate-800 border-slate-200/90 hover:border-slate-400'
+                  <div className="absolute left-7 flex items-center space-x-0 pointer-events-none z-10 pl-0.5">
+                    <div className="w-5 h-[1.5px] bg-slate-800 mr-1.5" />
+                    <span className={`text-xs font-bold whitespace-nowrap tracking-tight ${
+                      isSelected || symptom ? 'text-indigo-600 font-extrabold' : 'text-slate-900'
                     }`}>
                       {displayName} {symptom ? `• ${symptom.symptom}` : ''}
-                    </div>
+                    </span>
                   </div>
                 )}
 
-                {/* Top Floating Glass Label */}
+                {/* Top Pointer Line & Unboxed Text Label */}
                 {pin.labelSide === 'top' && (
-                  <div className="absolute bottom-7 flex flex-col items-center pointer-events-none z-10">
-                    <div className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shadow-sm border transition-all duration-200 ${
-                      isSelected || symptom
-                        ? 'bg-slate-900 text-white border-slate-900 shadow-md'
-                        : isHovered
-                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
-                        : 'bg-white/95 text-slate-800 border-slate-200/90 hover:border-slate-400'
+                  <div className="absolute bottom-7 flex flex-col items-center pointer-events-none z-10 pb-0.5">
+                    <span className={`text-xs font-bold whitespace-nowrap tracking-tight ${
+                      isSelected || symptom ? 'text-indigo-600 font-extrabold' : 'text-slate-900'
                     }`}>
                       {displayName} {symptom ? `• ${symptom.symptom}` : ''}
-                    </div>
-                    <div className="w-[1.5px] h-3 bg-slate-400/80 mt-0.5" />
+                    </span>
+                    <div className="w-[1.5px] h-3 bg-slate-800 mt-0.5" />
                   </div>
                 )}
               </div>
