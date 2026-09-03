@@ -1,4 +1,6 @@
 import React, { useState, useRef } from 'react';
+import MedicalAvatar from './MedicalAvatar';
+import { Mic, MicOff, ArrowLeft, RefreshCw } from 'lucide-react';
 
 export interface VoiceScreenProps {
   language?: 'en' | 'hi' | 'mr';
@@ -7,10 +9,10 @@ export interface VoiceScreenProps {
 
 export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBack }) => {
   const [status, setStatus] = useState<'idle' | 'listening' | 'loading' | 'done'>('idle');
+  const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [liveTranscript, setLiveTranscript] = useState<string>('');
   const [finalTranscript, setFinalTranscript] = useState<string>('');
   const [responseText, setResponseText] = useState<string>('');
-  const [_extractedInfo, setExtractedInfo] = useState<any>(null);
 
   const recognitionRef = useRef<any>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -29,21 +31,27 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
         mediaRecorderRef.current.stream.getTracks().forEach((t) => t.stop());
       } catch (e) {}
     }
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    setIsSpeaking(false);
     setStatus('idle');
     setLiveTranscript('');
     setFinalTranscript('');
     setResponseText('');
-    setExtractedInfo(null);
     fullSpokenTextRef.current = '';
     if (onBack) onBack();
   };
 
   const startListening = async () => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    setIsSpeaking(false);
     setStatus('listening');
     setLiveTranscript('');
     setFinalTranscript('');
     setResponseText('');
-    setExtractedInfo(null);
     fullSpokenTextRef.current = '';
 
     const SpeechRecognition =
@@ -71,7 +79,7 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
         recognition.start();
         recognitionRef.current = recognition;
       } catch (err) {
-        console.warn('SpeechRecognition failed to start:', err);
+        console.warn('SpeechRecognition error:', err);
       }
     }
 
@@ -89,7 +97,7 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
       recorder.start();
       mediaRecorderRef.current = recorder;
     } catch (err) {
-      console.warn('MediaRecorder access warning:', err);
+      console.warn('MediaRecorder warning:', err);
     }
   };
 
@@ -116,7 +124,7 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
     }
 
     const spokenText = (fullSpokenTextRef.current || liveTranscript).trim();
-    setFinalTranscript(spokenText || 'Patient symptom input');
+    setFinalTranscript(spokenText || 'Symptom audio input');
 
     try {
       let base64Audio = '';
@@ -153,19 +161,20 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
 
         setFinalTranscript(userSpoken);
         setResponseText(aiText);
-        setExtractedInfo(data.data.extractedInfo);
         setStatus('done');
 
         speakSpeechSynthesis(aiText);
 
         if (data.data.audioBase64) {
           const audio = new Audio(`data:audio/wav;base64,${data.data.audioBase64}`);
+          audio.onplay = () => setIsSpeaking(true);
+          audio.onended = () => setIsSpeaking(false);
           audio.play().catch(() => {});
         }
       }
     } catch (err) {
       console.error('Pipeline error:', err);
-      const fallbackText = `Samajh gaya. Aapne bataya: "${spokenText}". Doctor ko jankari bhej di gayi hai.`;
+      const fallbackText = `Samajh gaya. Aapne bataya: "${spokenText}".`;
       setResponseText(fallbackText);
       setStatus('done');
       speakSpeechSynthesis(fallbackText);
@@ -182,121 +191,132 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
         utterance.voice = selectedVoice;
       }
       utterance.rate = 0.9;
+      utterance.onstart = () => setIsSpeaking(true);
+      utterance.onend = () => setIsSpeaking(false);
+      utterance.onerror = () => setIsSpeaking(false);
       window.speechSynthesis.speak(utterance);
     }
   };
 
+  const handleAvatarClick = () => {
+    if (status === 'idle') {
+      startListening();
+    } else if (status === 'listening') {
+      stopAndProcess();
+    } else if (status === 'done') {
+      startListening();
+    }
+  };
+
   return (
-    <div className="w-full max-w-lg mx-auto text-slate-900 p-6 flex flex-col justify-between items-center text-center min-h-[520px] font-sans select-none my-auto">
-      {/* Header */}
-      <div className="w-full text-center pb-3">
-        <h1 className="text-xl font-extrabold tracking-widest text-slate-800 uppercase">
-          MEDIKIOSK
-        </h1>
+    <div className="w-full min-h-screen bg-white text-slate-900 flex flex-col justify-between items-center p-6 select-none font-sans relative">
+      {/* Top Minimal Navigation Bar */}
+      <div className="w-full max-w-2xl flex items-center justify-between pt-2">
+        <button
+          type="button"
+          onClick={handleExit}
+          className="p-2 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer rounded-full hover:bg-slate-100"
+          title="Back"
+        >
+          <ArrowLeft className="w-6 h-6" />
+        </button>
+
+        <span className="text-xs font-semibold tracking-wider text-slate-400 uppercase">
+          MediKiosk Assistant
+        </span>
+
+        <div className="w-6" />
       </div>
 
-      {/* Main Kiosk Display */}
-      <div className="my-auto space-y-6 w-full flex flex-col items-center">
-        {status === 'idle' && (
-          <div className="space-y-6 flex flex-col items-center">
-            <p className="text-xl font-medium text-slate-600">Ready to listen...</p>
+      {/* Main Center Area: Pure Plain White Background with Robot Avatar */}
+      <div className="my-auto flex flex-col items-center justify-center space-y-6 max-w-lg w-full text-center">
+        
+        {/* Avatar Component */}
+        <MedicalAvatar
+          status={status}
+          isSpeaking={isSpeaking}
+          language={language}
+          onClick={handleAvatarClick}
+        />
 
+        {/* Minimal Subtitle / Response Text */}
+        <div className="min-h-[70px] flex flex-col items-center justify-center space-y-2 px-4">
+          {status === 'idle' && (
+            <p className="text-slate-500 font-medium text-base tracking-wide">
+              {language === 'hi'
+                ? 'नमस्ते! अपनी समस्या बताने के लिए बोलें।'
+                : language === 'mr'
+                ? 'नमस्कार! तुमची समस्या सांगण्यासाठी बोला.'
+                : 'Hello! Tap to speak your symptoms.'}
+            </p>
+          )}
+
+          {status === 'listening' && (
+            <div className="space-y-2 w-full">
+              <p className="text-slate-800 font-semibold text-lg">
+                {liveTranscript || (language === 'hi' ? 'सुन रहे हैं...' : 'Listening...')}
+              </p>
+              <p className="text-xs text-slate-400">Tap avatar or stop button when finished</p>
+            </div>
+          )}
+
+          {status === 'loading' && (
+            <p className="text-slate-600 font-medium text-base">
+              {language === 'hi' ? 'समझ रहे हैं...' : 'Processing...'}
+            </p>
+          )}
+
+          {status === 'done' && (
+            <div className="space-y-2 max-w-md">
+              {responseText && (
+                <p className="text-slate-900 font-medium text-lg leading-relaxed">
+                  "{responseText}"
+                </p>
+              )}
+              {finalTranscript && (
+                <p className="text-xs text-slate-400">
+                  You said: "{finalTranscript}"
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Clean Single Mic Control Button */}
+        <div className="pt-2">
+          {status === 'listening' ? (
+            <button
+              type="button"
+              onClick={stopAndProcess}
+              className="w-16 h-16 rounded-full bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center shadow-lg transition-transform active:scale-95 cursor-pointer"
+            >
+              <MicOff className="w-7 h-7" />
+            </button>
+          ) : status === 'loading' ? (
+            <div className="w-16 h-16 rounded-full border-4 border-slate-200 border-t-slate-900 animate-spin" />
+          ) : status === 'done' ? (
             <button
               type="button"
               onClick={startListening}
-              className="w-24 h-24 rounded-full bg-rose-600 hover:bg-rose-700 active:scale-95 text-white flex items-center justify-center text-4xl shadow-xl transition-transform cursor-pointer"
+              className="px-6 py-3 rounded-full bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-800 font-semibold text-sm transition-all flex items-center space-x-2 cursor-pointer shadow-sm"
             >
-              🎙
+              <RefreshCw className="w-4 h-4 text-slate-600" />
+              <span>Speak Again</span>
             </button>
-
-            <p className="text-sm font-semibold text-slate-500">
-              Tap the red button and speak your symptoms.
-            </p>
-          </div>
-        )}
-
-        {status === 'listening' && (
-          <div className="space-y-4 flex flex-col items-center w-full">
-            <p className="text-xl font-medium text-slate-600">I'm listening...</p>
-
-            <div className="relative flex items-center justify-center my-2">
-              <div className="w-20 h-20 rounded-full bg-rose-500/20 animate-ping absolute"></div>
-              <div className="w-14 h-14 rounded-full bg-rose-600 text-white flex items-center justify-center text-3xl font-bold shadow-lg z-10">
-                ◉
-              </div>
-            </div>
-
-            <div className="w-full space-y-2">
-              <input
-                type="text"
-                value={liveTranscript}
-                onChange={(e) => {
-                  setLiveTranscript(e.target.value);
-                  fullSpokenTextRef.current = e.target.value;
-                }}
-                placeholder="Speak now or type your symptom here..."
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-800 text-center focus:outline-none focus:border-slate-800"
-              />
-              <p className="text-xs text-slate-400">Live speech captured automatically</p>
-            </div>
-          </div>
-        )}
-
-        {status === 'loading' && (
-          <div className="space-y-4 py-4">
-            <p className="text-lg font-semibold text-slate-700 animate-pulse">
-              AI is analyzing what you asked...
-            </p>
-            <div className="w-16 h-16 rounded-full border-4 border-slate-200 border-t-slate-900 animate-spin mx-auto"></div>
-          </div>
-        )}
-
-        {status === 'done' && (
-          <div className="space-y-4 text-center w-full animate-in fade-in duration-300">
-            {finalTranscript && (
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-600">
-                <span className="font-bold text-slate-800">You Said: </span>
-                "{finalTranscript}"
-              </div>
-            )}
-
-            {responseText && (
-              <div className="p-5 bg-slate-900 text-white rounded-2xl text-lg font-bold shadow-md">
-                "{responseText}"
-              </div>
-            )}
-
+          ) : (
             <button
               type="button"
               onClick={startListening}
-              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 rounded-xl text-xs font-bold transition-all cursor-pointer"
+              className="w-16 h-16 rounded-full bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center shadow-lg transition-transform active:scale-95 cursor-pointer"
             >
-              Speak Again 🎙
+              <Mic className="w-7 h-7" />
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* Buttons */}
-      <div className="w-full pt-4 flex flex-col items-center space-y-3">
-        {status === 'listening' ? (
-          <button
-            type="button"
-            onClick={stopAndProcess}
-            className="w-full max-w-xs py-4 px-8 rounded-2xl bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-black text-xl tracking-wider transition-all cursor-pointer uppercase"
-          >
-            STOP
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={handleExit}
-            className="px-6 py-2 rounded-xl bg-slate-100 hover:bg-rose-600 hover:text-white border border-slate-300 font-extrabold text-xs text-slate-700 uppercase tracking-widest transition-all cursor-pointer"
-          >
-            EXIT
-          </button>
-        )}
-      </div>
+      {/* Bottom Spacer */}
+      <div className="pb-4" />
     </div>
   );
 };

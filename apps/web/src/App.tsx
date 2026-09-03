@@ -6,7 +6,7 @@ import MediKioskIntake from './components/medikiosk/MediKioskIntake.tsx';
 
 export default function App() {
   const [screen, setScreen] = useState<'welcome' | 'voice' | 'conversation' | 'medikiosk_3d'>('welcome');
-  const [language, setLanguage] = useState<'en' | 'hi' | 'mr'>('en');
+  const [language, setLanguage] = useState<'en' | 'hi' | 'mr'>('hi');
 
   return (
     <div className="min-h-screen bg-white text-slate-900 flex flex-col items-center justify-center p-4">
