@@ -165,7 +165,7 @@ export const BodyModel: React.FC<BodyModelProps> = ({
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto bg-white flex flex-col items-center justify-between min-h-[760px] font-sans select-none p-4 sm:p-6 animate-in fade-in duration-300">
+    <div className="w-full max-w-4xl mx-auto bg-white flex flex-col items-center justify-start font-sans select-none p-2 sm:p-4 animate-in fade-in duration-300">
       
       {/* Header Section */}
       <div className="w-full text-center space-y-2 pb-2">
