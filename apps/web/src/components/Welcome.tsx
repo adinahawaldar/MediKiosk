@@ -10,7 +10,7 @@ export interface WelcomeProps {
 
 export const Welcome: React.FC<WelcomeProps> = ({
   onStartIntake,
-  language: initialLanguage = 'hi',
+  language: initialLanguage = 'en',
   onLanguageChange
 }) => {
   const [language, setLanguage] = useState<'en' | 'hi' | 'mr'>(initialLanguage);
@@ -28,6 +28,7 @@ export const Welcome: React.FC<WelcomeProps> = ({
     if (language === 'hi') {
       return {
         speechText: 'नमस्ते! मेडीकियोस्क में आपका स्वागत है। आप कैसे आगे बढ़ना चाहते हैं? बोलकर या टाइप करके?',
+        speechLang: 'hi-IN',
         headline: 'अपनी पूर्व-परामर्श प्रक्रिया यहाँ पूरी करें',
         card1Title: 'बोलकर बताएं',
         card1Sub: 'स्वाभाविक रूप से बोलें',
@@ -39,6 +40,7 @@ export const Welcome: React.FC<WelcomeProps> = ({
     if (language === 'mr') {
       return {
         speechText: 'नमस्कार! मेडीकियोस्क मध्ये आपले स्वागत आहे. तुम्हाला कसे पुढे जायचे आहे? बोलून किंवा टाईप करून?',
+        speechLang: 'mr-IN',
         headline: 'DO YOUR PRE-CONSULTATION HERE',
         card1Title: 'TALK TO US',
         card1Sub: 'सहजपणे बोला',
@@ -48,7 +50,8 @@ export const Welcome: React.FC<WelcomeProps> = ({
       };
     }
     return {
-      speechText: "Welcome to MediKiosk! How would you like to proceed? Speaking or typing?",
+      speechText: 'नमस्ते! मेडीकियोस्क में आपका स्वागत है। आप कैसे आगे बढ़ना चाहते हैं? बोलकर या टाइप करके?',
+      speechLang: 'hi-IN',
       headline: 'DO YOUR PRE-CONSULTATION HERE',
       card1Title: 'TALK TO US',
       card1Sub: 'Speak naturally',
@@ -72,7 +75,7 @@ export const Welcome: React.FC<WelcomeProps> = ({
       const currentContent = getContent();
       const utterance = new SpeechSynthesisUtterance(currentContent.speechText);
 
-      utterance.lang = lang === 'hi' ? 'hi-IN' : lang === 'mr' ? 'mr-IN' : 'en-US';
+      utterance.lang = currentContent.speechLang || 'hi-IN';
       utterance.rate = 0.95;
       utterance.pitch = 1.0;
 
