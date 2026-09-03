@@ -26,9 +26,6 @@ export const MedicalAvatar: React.FC<MedicalAvatarProps> = ({ onClick }) => {
       onClick={onClick}
       className="relative flex flex-col items-center justify-center cursor-pointer select-none"
     >
-      {/* Subtle Soft Ambient Shadow Under Stand */}
-      <div className="absolute -bottom-4 w-44 h-6 bg-slate-200/80 rounded-full blur-md" />
-
       {/* Main White Robot Companion Body Container (Static Body Position) */}
       <div className="relative w-64 h-72 sm:w-72 sm:h-80 flex items-center justify-center">
         <svg
@@ -68,13 +65,6 @@ export const MedicalAvatar: React.FC<MedicalAvatarProps> = ({ onClick }) => {
               <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
             </linearGradient>
           </defs>
-
-          {/* Pedestal / Base Cylinder Stand */}
-          <g>
-            <ellipse cx="120" cy="235" rx="70" ry="12" fill="#e2e8f0" />
-            <path d="M 50 235 L 50 248 C 50 255 190 255 190 248 L 190 235 Z" fill="#cbd5e1" />
-            <ellipse cx="120" cy="235" rx="68" ry="10" fill="#f8fafc" />
-          </g>
 
           {/* Left Top Cylinder Knob / Antenna */}
           <g transform="rotate(-22, 70, 45)">
