@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, Trash2, CheckCircle2, User, UserCheck, ArrowRight, Activity } from 'lucide-react';
+import { Sparkles, Trash2, CheckCircle2, Plus } from 'lucide-react';
 
 export interface MappedSymptom {
   bodyRegion: string;
@@ -74,7 +74,7 @@ const REGION_LOCALIZED_NAMES: Record<string, Record<string, string>> = {
   },
 };
 
-// Anatomically Calibrated Coordinates
+// Precise Anatomical Downward Shift Calibration
 const HOTSPOT_PINS: HotspotPin[] = [
   { id: 'head', name: 'Head', x: 50, y: 16.5, labelSide: 'top' },
   { id: 'face', name: 'Face', x: 50, y: 20.5, labelSide: 'right' },
@@ -124,34 +124,26 @@ export const BodyModel: React.FC<BodyModelProps> = ({
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto bg-white flex flex-col items-center justify-between min-h-[760px] font-sans select-none p-4 sm:p-6 animate-in fade-in duration-300">
-      
-      {/* Header Section */}
-      <div className="w-full text-center space-y-3 pb-3">
-        
-        {/* Main Section Title */}
-        <div className="inline-flex items-center space-x-2 bg-slate-100 px-3 py-1 rounded-full text-slate-700 text-xs font-semibold tracking-wide uppercase">
-          <Activity className="w-3.5 h-3.5 text-indigo-600" />
-          <span>Interactive Anatomical Selector</span>
-        </div>
-
+    <div className="w-full max-w-3xl mx-auto bg-white flex flex-col items-center justify-between min-h-[760px] font-sans select-none p-4">
+      {/* Kiosk Header: Title & Gender Segmented Bar */}
+      <div className="w-full text-center space-y-2 pb-2 bg-white">
         <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
           {language === 'hi'
             ? 'दर्द या समस्या का स्थान चुनें'
             : language === 'mr'
-            ? 'दुखणे किंवा समस्येची जागा निवडा'
-            : 'Select Pain or Problem Area'}
+              ? 'दुखणे किंवा समस्येची जागा निवडा'
+              : 'Select Pain or Problem Area'}
         </h1>
 
-        {/* Sleek Tip Banner */}
-        <div className="inline-flex items-center justify-center space-x-2 bg-indigo-50/80 border border-indigo-100 text-indigo-950 px-4 py-2 rounded-full max-w-lg mx-auto shadow-xs">
-          <Sparkles className="w-4 h-4 text-indigo-600 shrink-0 animate-pulse" />
-          <p className="text-xs font-semibold text-indigo-900 text-center leading-tight">
+        {/* Professional Guidance Banner (Compact) */}
+        <div className="inline-flex items-center justify-center space-x-1.5 bg-indigo-50/70 border border-indigo-100/80 text-indigo-900 px-3.5 py-1 rounded-full max-w-md mx-auto shadow-2xs">
+          <Sparkles className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+          <p className="text-[11px] font-medium text-indigo-900 text-center leading-tight">
             {language === 'hi'
-              ? 'सुझाव: आप एक से अधिक अंग (जैसे सिर + पेट) चुन सकते हैं।'
+              ? 'आप एक से अधिक शारीरिक क्षेत्र (जैसे सिर + पेट) चुन सकते हैं'
               : language === 'mr'
-              ? 'टीप: आपण एकापेक्षा जास्त भाग (उदा. डोके + पोट) निवडू शकता.'
-              : 'Tip: You can select multiple areas (e.g. Head + Stomach). Tap any area to begin.'}
+              ? 'आपण एकापेक्षा जास्त भाग (उदा. डोके + पोट) निवडू शकता'
+              : 'You may select multiple body areas (e.g. Head + Stomach)'}
           </p>
         </div>
 
@@ -231,24 +223,24 @@ export const BodyModel: React.FC<BodyModelProps> = ({
         </div>
       )}
 
-      {/* Main 3D Standing Body Figure Scanner Frame */}
-      <div className="relative w-full max-w-2xl flex-1 flex items-center justify-center my-3 min-h-[560px] bg-gradient-to-b from-slate-50/60 via-white to-slate-50/40 rounded-3xl border border-slate-200/70 p-4 shadow-sm">
+      {/* Main Enlarged 3D Standing Body Figure Scanner Frame */}
+      <div className="relative w-full max-w-3xl flex-1 flex items-center justify-center my-3 min-h-[620px] bg-gradient-to-b from-slate-50/60 via-white to-slate-50/40 rounded-3xl border border-slate-200/70 p-4 sm:p-6 shadow-sm">
         
-        {/* Subtle Scanner Frame Corner Accents */}
+        {/* Corner Accents */}
         <div className="absolute top-4 left-4 w-4 h-4 border-t-2 border-l-2 border-slate-300 rounded-tl-sm pointer-events-none" />
         <div className="absolute top-4 right-4 w-4 h-4 border-t-2 border-r-2 border-slate-300 rounded-tr-sm pointer-events-none" />
         <div className="absolute bottom-4 left-4 w-4 h-4 border-b-2 border-l-2 border-slate-300 rounded-bl-sm pointer-events-none" />
         <div className="absolute bottom-4 right-4 w-4 h-4 border-b-2 border-r-2 border-slate-300 rounded-br-sm pointer-events-none" />
 
-        <div className="relative w-[480px] h-[540px] flex items-center justify-center">
-          {/* Standing 3D Body Figure Image */}
+        <div className="relative w-[540px] sm:w-[580px] h-[600px] sm:h-[640px] flex items-center justify-center">
+          {/* Standing 3D Body Figure Image (Enlarged) */}
           <img
             src={gender === 'male' ? '/assets/male_standing_3d.jpg' : '/assets/female_standing_3d.jpg'}
             alt={`${gender} 3D standing anatomical model`}
-            className="w-[320px] h-full object-contain mix-blend-multiply select-none filter drop-shadow-sm"
+            className="w-[300px] h-full object-contain mix-blend-multiply rounded-2xl select-none"
           />
 
-          {/* Interactive Target Nodes with Glassmorphic Floating Labels */}
+          {/* Plain White Target Circles with Calibrated Coordinates & Multilingual Text */}
           {HOTSPOT_PINS.map(pin => {
             const symptom = getSymptomForRegion(pin.id);
             const isSelected = selectedRegion === pin.id;
@@ -268,72 +260,50 @@ export const BodyModel: React.FC<BodyModelProps> = ({
                 }}
                 className="absolute cursor-pointer group z-20 flex items-center"
               >
-                {/* Glowing Radar Target Node */}
+                {/* Plain White Target Circle */}
                 <div
-                  className={`w-7 h-7 rounded-full bg-white border-2 flex items-center justify-center transition-all duration-300 relative z-30 shadow-md ${
-                    isSelected || symptom
-                      ? 'bg-indigo-600 border-white ring-4 ring-indigo-400/50 scale-110'
+                  className={`w-6 h-6 rounded-full bg-white border-2 border-slate-500 shadow-sm flex items-center justify-center transition-all duration-200 relative z-30 ${isSelected || symptom
+                      ? 'bg-slate-900 border-white ring-4 ring-orange-400/60 animate-pulse'
                       : isHovered
-                      ? 'scale-125 border-slate-900 bg-slate-900 shadow-lg'
-                      : 'border-slate-400 hover:border-slate-800 hover:scale-110'
-                  }`}
+                        ? 'scale-125 border-slate-900 bg-slate-900 shadow-md'
+                        : 'hover:scale-110'
+                    }`}
                 >
                   <div
-                    className={`w-2.5 h-2.5 rounded-full transition-colors ${
-                      isSelected || symptom
-                        ? 'bg-white animate-pulse'
+                    className={`w-2.5 h-2.5 rounded-full ${isSelected || symptom
+                        ? 'bg-orange-400'
                         : isHovered
-                        ? 'bg-indigo-400'
-                        : 'bg-slate-600 group-hover:bg-slate-900'
-                    }`}
+                          ? 'bg-orange-400'
+                          : 'bg-slate-500'
+                      }`}
                   />
                 </div>
 
-                {/* Left Floating Glass Label */}
+                {/* Minimal Unboxed Text Label with Black Pointer Line */}
                 {pin.labelSide === 'left' && (
-                  <div className="absolute right-7 flex items-center space-x-1.5 pointer-events-none z-10">
-                    <div className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shadow-sm border transition-all duration-200 ${
-                      isSelected || symptom
-                        ? 'bg-slate-900 text-white border-slate-900 shadow-md'
-                        : isHovered
-                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
-                        : 'bg-white/95 text-slate-800 border-slate-200/90 hover:border-slate-400'
-                    }`}>
-                      {displayName} {symptom ? `• ${symptom.symptom}` : ''}
-                    </div>
-                    <div className="w-5 h-[1.5px] bg-slate-400/80" />
+                  <div className="absolute right-6 flex items-center space-x-0 pointer-events-none z-10 pr-0.5">
+                    <span className="text-slate-900 font-semibold text-xs whitespace-nowrap tracking-tight">
+                      {displayName} {symptom ? `(${symptom.symptom})` : ''}
+                    </span>
+                    <div className="w-4 h-[1.5px] bg-slate-800 ml-1.5" />
                   </div>
                 )}
 
-                {/* Right Floating Glass Label */}
                 {pin.labelSide === 'right' && (
-                  <div className="absolute left-7 flex items-center space-x-1.5 pointer-events-none z-10">
-                    <div className="w-5 h-[1.5px] bg-slate-400/80" />
-                    <div className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shadow-sm border transition-all duration-200 ${
-                      isSelected || symptom
-                        ? 'bg-slate-900 text-white border-slate-900 shadow-md'
-                        : isHovered
-                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
-                        : 'bg-white/95 text-slate-800 border-slate-200/90 hover:border-slate-400'
-                    }`}>
-                      {displayName} {symptom ? `• ${symptom.symptom}` : ''}
-                    </div>
+                  <div className="absolute left-6 flex items-center space-x-0 pointer-events-none z-10 pl-0.5">
+                    <div className="w-4 h-[1.5px] bg-slate-800 mr-1.5" />
+                    <span className="text-slate-900 font-semibold text-xs whitespace-nowrap tracking-tight">
+                      {displayName} {symptom ? `(${symptom.symptom})` : ''}
+                    </span>
                   </div>
                 )}
 
-                {/* Top Floating Glass Label */}
                 {pin.labelSide === 'top' && (
-                  <div className="absolute bottom-7 flex flex-col items-center pointer-events-none z-10">
-                    <div className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shadow-sm border transition-all duration-200 ${
-                      isSelected || symptom
-                        ? 'bg-slate-900 text-white border-slate-900 shadow-md'
-                        : isHovered
-                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
-                        : 'bg-white/95 text-slate-800 border-slate-200/90 hover:border-slate-400'
-                    }`}>
-                      {displayName} {symptom ? `• ${symptom.symptom}` : ''}
-                    </div>
-                    <div className="w-[1.5px] h-3 bg-slate-400/80 mt-0.5" />
+                  <div className="absolute bottom-6 flex flex-col items-center pointer-events-none z-10 pb-0.5">
+                    <span className="text-slate-900 font-semibold text-xs whitespace-nowrap tracking-tight">
+                      {displayName} {symptom ? `(${symptom.symptom})` : ''}
+                    </span>
+                    <div className="w-[1.5px] h-3 bg-slate-800 mt-0.5" />
                   </div>
                 )}
               </div>
@@ -342,34 +312,43 @@ export const BodyModel: React.FC<BodyModelProps> = ({
         </div>
       </div>
 
-      {/* Submission CTA Bar */}
-      {mappedSymptoms.length > 0 && onSubmitAssessment && (
-        <div className="w-full max-w-md pt-3 bg-white space-y-2 text-center animate-in fade-in duration-300">
-          <button
-            onClick={onSubmitAssessment}
-            disabled={isSubmitting}
-            className="w-full py-4 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm shadow-xl hover:shadow-2xl transition-all active:scale-98 cursor-pointer flex items-center justify-center space-x-2"
-          >
-            {isSubmitting ? (
-              <span>Analysing Symptoms...</span>
-            ) : (
-              <>
+      {/* Guidance & Submission Bar */}
+      {mappedSymptoms.length > 0 ? (
+        <div className="w-full max-w-md pt-3 bg-white space-y-2 text-center">
+          <div className="flex items-center justify-center space-x-2 text-xs font-bold text-slate-900 bg-white border-2 border-slate-900 py-2 px-3 rounded-2xl">
+            <Plus className="w-4 h-4 text-slate-900" />
+            <span>
+              {language === 'hi'
+                ? `${mappedSymptoms.length} लक्षण दर्ज किए गए।`
+                : language === 'mr'
+                  ? `${mappedSymptoms.length} लक्षण नोंदवले.`
+                  : `Recorded ${mappedSymptoms.length} symptom area(s).`}
+            </span>
+          </div>
+
+          {onSubmitAssessment && (
+            <button
+              onClick={onSubmitAssessment}
+              disabled={isSubmitting}
+              className="w-full py-4 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-sm shadow-xl transition-all active:scale-98 cursor-pointer flex items-center justify-center space-x-2"
+            >
+              {isSubmitting ? (
+                <span>Analysing...</span>
+              ) : (
                 <span>
                   {language === 'hi'
-                    ? `सबमिट करें (${mappedSymptoms.length})`
+                    ? `सबमिट करें (${mappedSymptoms.length}) →`
                     : language === 'mr'
-                    ? `सबमिट करा (${mappedSymptoms.length})`
-                    : `Submit All Symptoms (${mappedSymptoms.length})`}
+                      ? `सबमिट करा (${mappedSymptoms.length}) →`
+                      : `Submit All Symptoms (${mappedSymptoms.length}) →`}
                 </span>
-                <ArrowRight className="w-4 h-4 ml-1" />
-              </>
-            )}
-          </button>
+              )}
+            </button>
+          )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 };
 
 export default BodyModel;
-
