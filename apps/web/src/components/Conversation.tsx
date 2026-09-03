@@ -24,7 +24,7 @@ export const Conversation: React.FC<ConversationProps> = ({
   const [smartFollowUp, setSmartFollowUp] = useState<any>(null);
   const [question, setQuestion] = useState('');
   const [options, setOptions] = useState<string[]>([]);
-  const [_triageLevel, setTriageLevel] = useState<'RED' | 'AMBER' | 'GREEN'>('GREEN');
+  const [triageLevel, setTriageLevel] = useState<'RED' | 'AMBER' | 'GREEN'>('GREEN');
   const [opdToken, setOpdToken] = useState('OPD-104');
   const [roomNumber, setRoomNumber] = useState('Room 104 - OPD');
 
@@ -105,7 +105,33 @@ export const Conversation: React.FC<ConversationProps> = ({
   };
 
   // Step 4: Patient Confirms Doctor Summary
-  const handleConfirmSummary = () => {
+  const handleConfirmSummary = async () => {
+    try {
+      await fetch('http://localhost:5000/api/v1/medikiosk/submit-to-doctor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patientProfile: {
+            name: patientIdInput || 'Rahul Sharma',
+            phone: '9876543210',
+            abhaNumber: abhaRecord?.abhaId || '91-9876-5432-1098',
+          },
+          chiefComplaint: extractedInfo?.chiefComplaint || textInput,
+          socrates: {
+            site: extractedInfo?.location || 'Stomach / Abdomen',
+            onset: extractedInfo?.pattern || 'Recent',
+            duration: extractedInfo?.duration || '1-2 days',
+            severity: 'Moderate',
+          },
+          symptoms: extractedInfo?.symptoms || [textInput],
+          triage: triageLevel || 'GREEN',
+          redFlags: extractedInfo?.redFlags || [],
+        }),
+      });
+    } catch (e) {
+      console.warn('Consultation submission to doctor DB error:', e);
+    }
+
     setStep('token_ready');
     if (onComplete) onComplete({ extractedInfo, abhaRecord, opdToken, roomNumber });
   };
