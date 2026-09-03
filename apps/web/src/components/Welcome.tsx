@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Mic, Keyboard, HelpCircle, FileText, Download } from 'lucide-react';
 import MedicalAvatar from './MedicalAvatar';
 import { DoctorSummaryPreviewModal } from './medikiosk/DoctorSummaryPreviewModal';
-import { openDoctorSummaryPdfWindow } from '../utils/generateDoctorSummaryPdf';
+import { downloadDoctorSummaryPdfWithPuppeteer } from '../utils/generateDoctorSummaryPdf';
 
 export interface WelcomeProps {
   onStartIntake?: (mode: 'voice' | 'touch') => void;
@@ -218,9 +218,9 @@ export const Welcome: React.FC<WelcomeProps> = ({
 
           <button
             type="button"
-            onClick={() => openDoctorSummaryPdfWindow()}
+            onClick={() => downloadDoctorSummaryPdfWithPuppeteer()}
             className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer border border-slate-200"
-            title="Direct Print to PDF"
+            title="Direct Download PDF via Puppeteer"
           >
             <Download className="w-3.5 h-3.5 text-slate-600" />
             <span>PDF</span>

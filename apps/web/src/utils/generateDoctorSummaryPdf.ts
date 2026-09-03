@@ -297,3 +297,36 @@ export const openDoctorSummaryPdfWindow = (data: PatientSummaryData = DEFAULT_ST
     window.open('/doctor_clinical_summary.html', '_blank');
   }
 };
+
+/**
+ * Uses Express backend Puppeteer service to render HTML and trigger direct .pdf file download
+ */
+export const downloadDoctorSummaryPdfWithPuppeteer = async (
+  data: PatientSummaryData = DEFAULT_STATIC_SUMMARY_DATA
+): Promise<void> => {
+  const htmlContent = generateSummaryHTMLString(data);
+  try {
+    const res = await fetch('/api/v1/medikiosk/generate-pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ htmlContent }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`PDF generation failed with status: ${res.status}`);
+    }
+
+    const pdfBlob = await res.blob();
+    const url = URL.createObjectURL(pdfBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Doctor_Clinical_Summary_${data.ampathId || '00366'}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.warn('Puppeteer backend PDF download error, falling back to browser print window:', err);
+    openDoctorSummaryPdfWindow(data);
+  }
+};

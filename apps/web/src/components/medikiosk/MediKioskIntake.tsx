@@ -14,7 +14,7 @@ import {
   DoorOpen,
   Printer
 } from 'lucide-react';
-import { openDoctorSummaryPdfWindow } from '../../utils/generateDoctorSummaryPdf';
+import { downloadDoctorSummaryPdfWithPuppeteer } from '../../utils/generateDoctorSummaryPdf';
 
 interface MediKioskIntakeProps {
   onBackToWelcome?: () => void;
@@ -548,7 +548,7 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
             {/* Doctor Summary PDF Button */}
             <button
               onClick={() => {
-                openDoctorSummaryPdfWindow({
+                downloadDoctorSummaryPdfWithPuppeteer({
                   patientName: patientProfile?.name || 'Rahul Sharma',
                   age: patientProfile?.age ? `${patientProfile.age} Yrs` : '43 Yrs 8 Months',
                   gender: patientProfile?.gender || 'Male',

@@ -1,6 +1,6 @@
-import React from 'react';
-import { X, Printer, Download, FileText, CheckCircle } from 'lucide-react';
-import { DEFAULT_STATIC_SUMMARY_DATA, openDoctorSummaryPdfWindow, generateSummaryHTMLString } from '../../utils/generateDoctorSummaryPdf';
+import React, { useState } from 'react';
+import { X, Printer, Download, FileText, CheckCircle, Loader2 } from 'lucide-react';
+import { DEFAULT_STATIC_SUMMARY_DATA, downloadDoctorSummaryPdfWithPuppeteer, openDoctorSummaryPdfWindow, generateSummaryHTMLString } from '../../utils/generateDoctorSummaryPdf';
 
 interface DoctorSummaryPreviewModalProps {
   isOpen: boolean;
@@ -8,6 +8,8 @@ interface DoctorSummaryPreviewModalProps {
 }
 
 export const DoctorSummaryPreviewModal: React.FC<DoctorSummaryPreviewModalProps> = ({ isOpen, onClose }) => {
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false);
+
   if (!isOpen) return null;
 
   const data = DEFAULT_STATIC_SUMMARY_DATA;
@@ -23,6 +25,15 @@ export const DoctorSummaryPreviewModal: React.FC<DoctorSummaryPreviewModalProps>
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadPdf = async () => {
+    setIsGeneratingPdf(true);
+    try {
+      await downloadDoctorSummaryPdfWithPuppeteer(data);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   const handlePrintPdf = () => {
@@ -47,12 +58,31 @@ export const DoctorSummaryPreviewModal: React.FC<DoctorSummaryPreviewModalProps>
 
           <div className="flex items-center space-x-2">
             <button
+              onClick={handleDownloadPdf}
+              disabled={isGeneratingPdf}
+              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer shadow-sm disabled:opacity-70"
+              title="Download PDF via Puppeteer"
+            >
+              {isGeneratingPdf ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Generating PDF...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4" />
+                  <span>Download PDF (Puppeteer)</span>
+                </>
+              )}
+            </button>
+
+            <button
               onClick={handlePrintPdf}
-              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer shadow-sm"
-              title="Save as PDF or Print"
+              className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer"
+              title="Print PDF Window"
             >
               <Printer className="w-4 h-4" />
-              <span>Download / Save as PDF</span>
+              <span>Print Window</span>
             </button>
 
             <button
@@ -234,11 +264,21 @@ export const DoctorSummaryPreviewModal: React.FC<DoctorSummaryPreviewModalProps>
 
           <div className="flex items-center space-x-3">
             <button
-              onClick={handlePrintPdf}
-              className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black shadow-md cursor-pointer transition-all flex items-center space-x-1.5"
+              onClick={handleDownloadPdf}
+              disabled={isGeneratingPdf}
+              className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black shadow-md cursor-pointer transition-all flex items-center space-x-1.5 disabled:opacity-70"
             >
-              <Printer className="w-4 h-4" />
-              <span>Download PDF →</span>
+              {isGeneratingPdf ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Generating PDF...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4 text-blue-400" />
+                  <span>Download PDF (Puppeteer) →</span>
+                </>
+              )}
             </button>
           </div>
         </div>

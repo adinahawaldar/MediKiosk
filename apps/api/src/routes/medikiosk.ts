@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { translateTextWithSarvam } from '../services/sarvamTranslate';
+import { generatePdfFromHtml } from '../services/puppeteerPdf';
 
 export interface SymptomItem {
   bodyRegion: string;
@@ -395,7 +396,7 @@ router.post('/assessment/complete', (req: Request, res: Response) => {
     }
 
     const redFlags: string[] = [];
-    let triageStatus: 'RED' | 'AMBER' | 'GREEN' = 'GREEN';
+    let triageStatus: string = 'GREEN';
 
     session.symptoms.forEach(item => {
       const isChest = item.bodyRegion.includes('chest') || item.bodyRegion.includes('breathing');
@@ -429,7 +430,7 @@ router.post('/assessment/complete', (req: Request, res: Response) => {
       patientProfile: session.patientProfile,
     };
 
-    session.triage = triageStatus;
+    session.triage = triageStatus as 'RED' | 'AMBER' | 'GREEN';
     session.redFlags = redFlags;
     session.summary = summaryPayload;
 
@@ -654,6 +655,29 @@ router.post('/converse-turn', async (req: Request, res: Response) => {
     });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Puppeteer PDF Generation Endpoint
+ * POST /api/v1/medikiosk/generate-pdf
+ */
+router.post('/generate-pdf', async (req: Request, res: Response) => {
+  try {
+    const { htmlContent } = req.body;
+    if (!htmlContent) {
+      return res.status(400).json({ success: false, error: 'htmlContent is required' });
+    }
+
+    const pdfBuffer = await generatePdfFromHtml(htmlContent);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="Doctor_Clinical_Summary.pdf"');
+    res.setHeader('Content-Length', pdfBuffer.length);
+    return res.send(pdfBuffer);
+  } catch (err: any) {
+    console.error('Puppeteer PDF Generation Error:', err);
+    return res.status(500).json({ success: false, error: 'Failed to generate PDF via Puppeteer', details: err.message });
   }
 });
 
