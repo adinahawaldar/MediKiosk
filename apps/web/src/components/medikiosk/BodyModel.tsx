@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, Trash2, CheckCircle2, Plus } from 'lucide-react';
+import { Sparkles, Trash2, CheckCircle2, Plus, Mic, CornerDownLeft, Activity, User, UserCheck, ArrowRight } from 'lucide-react';
 
 export interface MappedSymptom {
   bodyRegion: string;
@@ -74,7 +74,7 @@ const REGION_LOCALIZED_NAMES: Record<string, Record<string, string>> = {
   },
 };
 
-// Precise Anatomical Downward Shift Calibration
+// Precise Anatomical Coordinates
 const HOTSPOT_PINS: HotspotPin[] = [
   { id: 'head', name: 'Head', x: 50, y: 16.5, labelSide: 'top' },
   { id: 'face', name: 'Face', x: 50, y: 20.5, labelSide: 'right' },
@@ -100,6 +100,7 @@ export const BodyModel: React.FC<BodyModelProps> = ({
 }) => {
   const [gender, setGender] = useState<'male' | 'female'>('male');
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [customInputText, setCustomInputText] = useState<string>('');
 
   const getPinName = (pin: HotspotPin) => {
     const dict = REGION_LOCALIZED_NAMES[language] || REGION_LOCALIZED_NAMES.en;
@@ -123,27 +124,68 @@ export const BodyModel: React.FC<BodyModelProps> = ({
     }
   };
 
+  // Handle custom symptom text entry (e.g., "vomiting", "nausea", "fever")
+  const handleCustomInputSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const query = customInputText.trim().toLowerCase();
+    if (!query) return;
+
+    let targetRegionId = 'stomach';
+    let targetRegionName = 'Stomach';
+
+    if (query.includes('head') || query.includes('migraine') || query.includes('dizzy') || query.includes('fever')) {
+      targetRegionId = 'head';
+      targetRegionName = 'Head';
+    } else if (query.includes('face') || query.includes('eye') || query.includes('ear') || query.includes('tooth')) {
+      targetRegionId = 'face';
+      targetRegionName = 'Face';
+    } else if (query.includes('neck') || query.includes('throat')) {
+      targetRegionId = 'neck';
+      targetRegionName = 'Neck';
+    } else if (query.includes('chest') || query.includes('breath') || query.includes('cough') || query.includes('heart')) {
+      targetRegionId = 'chest';
+      targetRegionName = 'Chest';
+    } else if (query.includes('shoulder')) {
+      targetRegionId = 'right_shoulder';
+      targetRegionName = 'Right Shoulder';
+    } else if (query.includes('knee') || query.includes('leg')) {
+      targetRegionId = 'right_knee';
+      targetRegionName = 'Right Knee';
+    } else if (query.includes('hand') || query.includes('arm')) {
+      targetRegionId = 'right_hand';
+      targetRegionName = 'Right Hand';
+    } else {
+      // Default for vomiting / nausea / belly / stomach issues -> Stomach
+      targetRegionId = 'stomach';
+      targetRegionName = 'Stomach';
+    }
+
+    onSelectRegion(targetRegionId, targetRegionName);
+    setCustomInputText('');
+  };
+
   return (
-    <div className="w-full max-w-3xl mx-auto bg-white flex flex-col items-center justify-between min-h-[760px] font-sans select-none p-4">
-      {/* Kiosk Header: Title & Gender Segmented Bar */}
-      <div className="w-full text-center space-y-2 pb-2 bg-white">
+    <div className="w-full max-w-4xl mx-auto bg-white flex flex-col items-center justify-between min-h-[760px] font-sans select-none p-4 sm:p-6 animate-in fade-in duration-300">
+      
+      {/* Header Section */}
+      <div className="w-full text-center space-y-2 pb-2">
         <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
           {language === 'hi'
             ? 'दर्द या समस्या का स्थान चुनें'
             : language === 'mr'
-              ? 'दुखणे किंवा समस्येची जागा निवडा'
-              : 'Select Pain or Problem Area'}
+            ? 'दुखणे किंवा समस्येची जागा निवडा'
+            : 'Select Pain or Problem Area'}
         </h1>
 
-        {/* Professional Guidance Banner (Compact) */}
-        <div className="inline-flex items-center justify-center space-x-1.5 bg-indigo-50/70 border border-indigo-100/80 text-indigo-900 px-3.5 py-1 rounded-full max-w-md mx-auto shadow-2xs">
-          <Sparkles className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-          <p className="text-[11px] font-medium text-indigo-900 text-center leading-tight">
+        {/* Extra Small Compact Guidance Banner (No "Tip" word) */}
+        <div className="inline-flex items-center justify-center space-x-1 bg-indigo-50/70 border border-indigo-100/80 text-indigo-900 px-3 py-0.5 rounded-full max-w-md mx-auto shadow-2xs">
+          <Sparkles className="w-3 h-3 text-indigo-600 shrink-0" />
+          <p className="text-[10px] font-medium text-indigo-900 text-center leading-tight">
             {language === 'hi'
-              ? 'आप एक से अधिक शारीरिक क्षेत्र (जैसे सिर + पेट) चुन सकते हैं'
+              ? 'आप एक से अधिक अंग चुन सकते हैं या नीचे अपना लक्षण टाइप करें'
               : language === 'mr'
-              ? 'आपण एकापेक्षा जास्त भाग (उदा. डोके + पोट) निवडू शकता'
-              : 'You may select multiple body areas (e.g. Head + Stomach)'}
+              ? 'आपण एकापेक्षा जास्त भाग निवडू शकता किंवा खाली तुमची समस्या टाइप करा'
+              : 'Select multiple body areas or type your symptom below'}
           </p>
         </div>
 
@@ -224,7 +266,7 @@ export const BodyModel: React.FC<BodyModelProps> = ({
       )}
 
       {/* Main Enlarged 3D Standing Body Figure Scanner Frame */}
-      <div className="relative w-full max-w-3xl flex-1 flex items-center justify-center my-3 min-h-[620px] bg-gradient-to-b from-slate-50/60 via-white to-slate-50/40 rounded-3xl border border-slate-200/70 p-4 sm:p-6 shadow-sm">
+      <div className="relative w-full max-w-3xl flex-1 flex items-center justify-center my-2 min-h-[580px] bg-gradient-to-b from-slate-50/60 via-white to-slate-50/40 rounded-3xl border border-slate-200/70 p-4 sm:p-6 shadow-sm">
         
         {/* Corner Accents */}
         <div className="absolute top-4 left-4 w-4 h-4 border-t-2 border-l-2 border-slate-300 rounded-tl-sm pointer-events-none" />
@@ -232,15 +274,15 @@ export const BodyModel: React.FC<BodyModelProps> = ({
         <div className="absolute bottom-4 left-4 w-4 h-4 border-b-2 border-l-2 border-slate-300 rounded-bl-sm pointer-events-none" />
         <div className="absolute bottom-4 right-4 w-4 h-4 border-b-2 border-r-2 border-slate-300 rounded-br-sm pointer-events-none" />
 
-        <div className="relative w-[540px] sm:w-[580px] h-[600px] sm:h-[640px] flex items-center justify-center">
+        <div className="relative w-[540px] sm:w-[580px] h-[560px] sm:h-[600px] flex items-center justify-center">
           {/* Standing 3D Body Figure Image (Enlarged) */}
           <img
             src={gender === 'male' ? '/assets/male_standing_3d.jpg' : '/assets/female_standing_3d.jpg'}
             alt={`${gender} 3D standing anatomical model`}
-            className="w-[300px] h-full object-contain mix-blend-multiply rounded-2xl select-none"
+            className="w-[360px] sm:w-[400px] h-full object-contain mix-blend-multiply select-none filter drop-shadow-sm"
           />
 
-          {/* Plain White Target Circles with Calibrated Coordinates & Multilingual Text */}
+          {/* Interactive Target Nodes with Glassmorphic Floating Labels */}
           {HOTSPOT_PINS.map(pin => {
             const symptom = getSymptomForRegion(pin.id);
             const isSelected = selectedRegion === pin.id;
@@ -260,50 +302,72 @@ export const BodyModel: React.FC<BodyModelProps> = ({
                 }}
                 className="absolute cursor-pointer group z-20 flex items-center"
               >
-                {/* Plain White Target Circle */}
+                {/* Glowing Radar Target Node */}
                 <div
-                  className={`w-6 h-6 rounded-full bg-white border-2 border-slate-500 shadow-sm flex items-center justify-center transition-all duration-200 relative z-30 ${isSelected || symptom
-                      ? 'bg-slate-900 border-white ring-4 ring-orange-400/60 animate-pulse'
+                  className={`w-7 h-7 rounded-full bg-white border-2 flex items-center justify-center transition-all duration-300 relative z-30 shadow-md ${
+                    isSelected || symptom
+                      ? 'bg-indigo-600 border-white ring-4 ring-indigo-400/50 scale-110'
                       : isHovered
-                        ? 'scale-125 border-slate-900 bg-slate-900 shadow-md'
-                        : 'hover:scale-110'
-                    }`}
+                      ? 'scale-125 border-slate-900 bg-slate-900 shadow-lg'
+                      : 'border-slate-400 hover:border-slate-800 hover:scale-110'
+                  }`}
                 >
                   <div
-                    className={`w-2.5 h-2.5 rounded-full ${isSelected || symptom
-                        ? 'bg-orange-400'
+                    className={`w-2.5 h-2.5 rounded-full transition-colors ${
+                      isSelected || symptom
+                        ? 'bg-white animate-pulse'
                         : isHovered
-                          ? 'bg-orange-400'
-                          : 'bg-slate-500'
-                      }`}
+                        ? 'bg-indigo-400'
+                        : 'bg-slate-600 group-hover:bg-slate-900'
+                    }`}
                   />
                 </div>
 
-                {/* Minimal Unboxed Text Label with Black Pointer Line */}
+                {/* Left Floating Glass Label */}
                 {pin.labelSide === 'left' && (
-                  <div className="absolute right-6 flex items-center space-x-0 pointer-events-none z-10 pr-0.5">
-                    <span className="text-slate-900 font-semibold text-xs whitespace-nowrap tracking-tight">
-                      {displayName} {symptom ? `(${symptom.symptom})` : ''}
-                    </span>
-                    <div className="w-4 h-[1.5px] bg-slate-800 ml-1.5" />
+                  <div className="absolute right-7 flex items-center space-x-1.5 pointer-events-none z-10">
+                    <div className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shadow-sm border transition-all duration-200 ${
+                      isSelected || symptom
+                        ? 'bg-slate-900 text-white border-slate-900 shadow-md'
+                        : isHovered
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
+                        : 'bg-white/95 text-slate-800 border-slate-200/90 hover:border-slate-400'
+                    }`}>
+                      {displayName} {symptom ? `• ${symptom.symptom}` : ''}
+                    </div>
+                    <div className="w-5 h-[1.5px] bg-slate-400/80" />
                   </div>
                 )}
 
+                {/* Right Floating Glass Label */}
                 {pin.labelSide === 'right' && (
-                  <div className="absolute left-6 flex items-center space-x-0 pointer-events-none z-10 pl-0.5">
-                    <div className="w-4 h-[1.5px] bg-slate-800 mr-1.5" />
-                    <span className="text-slate-900 font-semibold text-xs whitespace-nowrap tracking-tight">
-                      {displayName} {symptom ? `(${symptom.symptom})` : ''}
-                    </span>
+                  <div className="absolute left-7 flex items-center space-x-1.5 pointer-events-none z-10">
+                    <div className="w-5 h-[1.5px] bg-slate-400/80" />
+                    <div className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shadow-sm border transition-all duration-200 ${
+                      isSelected || symptom
+                        ? 'bg-slate-900 text-white border-slate-900 shadow-md'
+                        : isHovered
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
+                        : 'bg-white/95 text-slate-800 border-slate-200/90 hover:border-slate-400'
+                    }`}>
+                      {displayName} {symptom ? `• ${symptom.symptom}` : ''}
+                    </div>
                   </div>
                 )}
 
+                {/* Top Floating Glass Label */}
                 {pin.labelSide === 'top' && (
-                  <div className="absolute bottom-6 flex flex-col items-center pointer-events-none z-10 pb-0.5">
-                    <span className="text-slate-900 font-semibold text-xs whitespace-nowrap tracking-tight">
-                      {displayName} {symptom ? `(${symptom.symptom})` : ''}
-                    </span>
-                    <div className="w-[1.5px] h-3 bg-slate-800 mt-0.5" />
+                  <div className="absolute bottom-7 flex flex-col items-center pointer-events-none z-10">
+                    <div className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shadow-sm border transition-all duration-200 ${
+                      isSelected || symptom
+                        ? 'bg-slate-900 text-white border-slate-900 shadow-md'
+                        : isHovered
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
+                        : 'bg-white/95 text-slate-800 border-slate-200/90 hover:border-slate-400'
+                    }`}>
+                      {displayName} {symptom ? `• ${symptom.symptom}` : ''}
+                    </div>
+                    <div className="w-[1.5px] h-3 bg-slate-400/80 mt-0.5" />
                   </div>
                 )}
               </div>
@@ -312,43 +376,69 @@ export const BodyModel: React.FC<BodyModelProps> = ({
         </div>
       </div>
 
-      {/* Guidance & Submission Bar */}
-      {mappedSymptoms.length > 0 ? (
-        <div className="w-full max-w-md pt-3 bg-white space-y-2 text-center">
-          <div className="flex items-center justify-center space-x-2 text-xs font-bold text-slate-900 bg-white border-2 border-slate-900 py-2 px-3 rounded-2xl">
-            <Plus className="w-4 h-4 text-slate-900" />
-            <span>
-              {language === 'hi'
-                ? `${mappedSymptoms.length} लक्षण दर्ज किए गए।`
-                : language === 'mr'
-                  ? `${mappedSymptoms.length} लक्षण नोंदवले.`
-                  : `Recorded ${mappedSymptoms.length} symptom area(s).`}
-            </span>
-          </div>
+      {/* Pill-shaped Custom Symptom Text Input Section (Matching User Reference Image) */}
+      <form
+        onSubmit={handleCustomInputSubmit}
+        className="w-full max-w-xl mx-auto my-3 bg-slate-100/90 hover:bg-slate-100 border border-slate-200/90 focus-within:border-slate-800 focus-within:bg-white focus-within:shadow-md rounded-full px-4 py-2.5 flex items-center space-x-3 transition-all duration-200"
+      >
+        <Mic className="w-5 h-5 text-slate-500 shrink-0" />
+        
+        <input
+          type="text"
+          value={customInputText}
+          onChange={(e) => setCustomInputText(e.target.value)}
+          placeholder={
+            language === 'hi'
+              ? 'आज आप क्या ढूंढ रहे हैं? (उदा. उल्टी, पेट दर्द, बुखार, सिरदर्द)...'
+              : language === 'mr'
+              ? 'आज तुम्हाला कशाचा त्रास होतोय? (उदा. उलट्या, ताप, डोकेदुखी)...'
+              : 'What are you looking for today? (e.g. Vomiting, Nausea, Fever)...'
+          }
+          className="flex-1 bg-transparent text-sm text-slate-900 placeholder-slate-400 focus:outline-none font-medium"
+        />
 
-          {onSubmitAssessment && (
-            <button
-              onClick={onSubmitAssessment}
-              disabled={isSubmitting}
-              className="w-full py-4 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-sm shadow-xl transition-all active:scale-98 cursor-pointer flex items-center justify-center space-x-2"
-            >
-              {isSubmitting ? (
-                <span>Analysing...</span>
-              ) : (
+        <button
+          type="submit"
+          disabled={!customInputText.trim()}
+          className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+            customInputText.trim()
+              ? 'bg-slate-900 text-white shadow-sm hover:bg-slate-800 scale-105'
+              : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+          }`}
+          title="Search symptom"
+        >
+          <CornerDownLeft className="w-4 h-4" />
+        </button>
+      </form>
+
+      {/* Submission CTA Bar */}
+      {mappedSymptoms.length > 0 && onSubmitAssessment && (
+        <div className="w-full max-w-md pt-2 bg-white space-y-2 text-center animate-in fade-in duration-300">
+          <button
+            onClick={onSubmitAssessment}
+            disabled={isSubmitting}
+            className="w-full py-4 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm shadow-xl hover:shadow-2xl transition-all active:scale-98 cursor-pointer flex items-center justify-center space-x-2"
+          >
+            {isSubmitting ? (
+              <span>Analysing Symptoms...</span>
+            ) : (
+              <>
                 <span>
                   {language === 'hi'
-                    ? `सबमिट करें (${mappedSymptoms.length}) →`
+                    ? `सबमिट करें (${mappedSymptoms.length})`
                     : language === 'mr'
-                      ? `सबमिट करा (${mappedSymptoms.length}) →`
-                      : `Submit All Symptoms (${mappedSymptoms.length}) →`}
+                    ? `सबमिट करा (${mappedSymptoms.length})`
+                    : `Submit All Symptoms (${mappedSymptoms.length})`}
                 </span>
-              )}
-            </button>
-          )}
+                <ArrowRight className="w-4 h-4 ml-1" />
+              </>
+            )}
+          </button>
         </div>
-      ) : null}
+      )}
     </div>
   );
 };
 
 export default BodyModel;
+

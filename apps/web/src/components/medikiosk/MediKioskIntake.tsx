@@ -311,19 +311,6 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
       
       {/* Top Main Content Container */}
       <div className="w-full flex-1 flex flex-col items-center justify-center p-4 md:p-6">
-        
-        {/* Kiosk Reset Action Button */}
-        {onBackToWelcome && (
-          <div className="w-full max-w-2xl flex items-center justify-start mb-2">
-            <button
-              onClick={onBackToWelcome}
-              className="flex items-center space-x-2 px-4 py-2 rounded-2xl bg-white border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50 transition-all cursor-pointer"
-            >
-              <RotateCcw className="w-4 h-4 text-slate-600" />
-              <span>Back to Welcome</span>
-            </button>
-          </div>
-        )}
 
         {/* STEP 1: ABHA NUMBER ENTRY WITH PROGRESSIVE OTP DISCLOSURE */}
         {step === 'ABHA_AUTH' && (
