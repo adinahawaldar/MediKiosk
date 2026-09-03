@@ -6,6 +6,7 @@ import { getPastHistoryForRegion, PATIENT_DEMO_DATA } from '../../data/patientDe
 interface SymptomPanelProps {
   regionId: string;
   regionName: string;
+  initialSymptom?: string;
   mappedSymptoms?: MappedSymptom[];
   existingSymptom?: MappedSymptom;
   onSaveSymptom: (symptomData: MappedSymptom) => void;
@@ -23,6 +24,7 @@ const SEVERITY_LEVELS = [
 export const SymptomPanel: React.FC<SymptomPanelProps> = ({
   regionId,
   regionName,
+  initialSymptom,
   mappedSymptoms = [],
   existingSymptom,
   onSaveSymptom,
@@ -36,7 +38,7 @@ export const SymptomPanel: React.FC<SymptomPanelProps> = ({
   const [currentStep, setCurrentStep] = useState<number>(1);
 
   // Form States for Single / Multi
-  const [selectedSymptom, setSelectedSymptom] = useState<string>(existingSymptom?.symptom || 'pain');
+  const [selectedSymptom, setSelectedSymptom] = useState<string>(initialSymptom || existingSymptom?.symptom || 'Pain / Ache');
   const [historyRelation, setHistoryRelation] = useState<'recurring' | 'new' | 'mixed'>('recurring');
   const [primaryTroubleRegion, setPrimaryTroubleRegion] = useState<string>(
     mappedSymptoms[0]?.bodyRegion || regionId
@@ -304,30 +306,54 @@ export const SymptomPanel: React.FC<SymptomPanelProps> = ({
                   </div>
                 ) : (
                   <div className="space-y-4 text-left">
-                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
-                      <p className="text-xs font-extrabold text-slate-900 leading-snug">
-                        Okay {patientName}, what kind of problem or pain are you experiencing in your {regionName}?
-                      </p>
-                    </div>
+                    {(() => {
+                      const sym = (initialSymptom || existingSymptom?.symptom || '').toLowerCase();
+                      let prompt = `Okay ${patientName}, what kind of problem or pain are you experiencing in your ${regionName}?`;
+                      let options = ['Pain / Ache', 'Stiffness', 'Burning', 'Injury / Strain'];
 
-                    <div className="grid grid-cols-2 gap-2">
-                      {['Pain / Ache', 'Stiffness', 'Burning', 'Injury / Strain'].map(sym => (
-                        <button
-                          key={sym}
-                          onClick={() => {
-                            setSelectedSymptom(sym);
-                            setCurrentStep(2);
-                          }}
-                          className={`py-3 px-3 rounded-2xl border-2 text-xs font-black transition-all cursor-pointer text-left ${
-                            selectedSymptom === sym
-                              ? 'bg-slate-900 text-white border-slate-900 shadow-md'
-                              : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50'
-                          }`}
-                        >
-                          {sym}
-                        </button>
-                      ))}
-                    </div>
+                      if (sym.includes('vomit') || sym.includes('nausea') || sym.includes('acidity')) {
+                        prompt = `Okay ${patientName}, you reported "${initialSymptom || 'vomiting'}". What specific digestive or stomach trouble are you experiencing?`;
+                        options = ['Vomiting after meals', 'Nausea / Motion', 'Acidity / Reflux', 'Abdominal Cramps'];
+                      } else if (sym.includes('chest') || sym.includes('cough') || sym.includes('breath')) {
+                        prompt = `Okay ${patientName}, you reported "${initialSymptom || 'chest trouble'}". What specific respiratory or chest trouble are you experiencing?`;
+                        options = ['Sharp Chest Pain', 'Dry Cough / Wheezing', 'Shortness of Breath', 'Chest Pressure'];
+                      } else if (sym.includes('head') || sym.includes('fever') || sym.includes('dizzy')) {
+                        prompt = `Okay ${patientName}, you reported "${initialSymptom || 'headache/fever'}". What specific head or fever symptom are you experiencing?`;
+                        options = ['Throbbing Headache', 'High Fever / Chills', 'Dizziness / Vertigo', 'Migraine Attack'];
+                      } else if (initialSymptom) {
+                        prompt = `Okay ${patientName}, you reported "${initialSymptom}". Please confirm the type of trouble in your ${regionName}:`;
+                        options = [initialSymptom, 'Pain / Ache', 'Stiffness', 'Swelling'];
+                      }
+
+                      return (
+                        <>
+                          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                            <p className="text-xs font-extrabold text-slate-900 leading-snug">
+                              {prompt}
+                            </p>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            {options.map(symOption => (
+                              <button
+                                key={symOption}
+                                onClick={() => {
+                                  setSelectedSymptom(symOption);
+                                  setCurrentStep(2);
+                                }}
+                                className={`py-3 px-3 rounded-2xl border-2 text-xs font-black transition-all cursor-pointer text-left ${
+                                  selectedSymptom === symOption
+                                    ? 'bg-slate-900 text-white border-slate-900 shadow-md'
+                                    : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50'
+                                }`}
+                              >
+                                {symOption}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 )}
               </div>

@@ -17,7 +17,7 @@ export interface MappedSymptom {
 interface BodyModelProps {
   mappedSymptoms: MappedSymptom[];
   selectedRegion: string | null;
-  onSelectRegion: (regionId: string, regionName: string) => void;
+  onSelectRegion: (regionId: string, regionName: string, initialSymptom?: string) => void;
   onRemoveSymptom?: (regionId: string) => void;
   onSubmitAssessment?: () => void;
   isSubmitting?: boolean;
@@ -160,7 +160,7 @@ export const BodyModel: React.FC<BodyModelProps> = ({
       targetRegionName = 'Stomach';
     }
 
-    onSelectRegion(targetRegionId, targetRegionName);
+    onSelectRegion(targetRegionId, targetRegionName, customInputText.trim());
     setCustomInputText('');
   };
 

@@ -43,7 +43,7 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [mappedSymptoms, setMappedSymptoms] = useState<MappedSymptom[]>([]);
-  const [activeRegion, setActiveRegion] = useState<{ id: string; name: string } | null>(null);
+  const [activeRegion, setActiveRegion] = useState<{ id: string; name: string; initialSymptom?: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [summaryData, setSummaryData] = useState<any>(null);
 
@@ -210,8 +210,8 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
   };
 
   // Select Region on 3D Body -> Opens Question Popup Modal
-  const handleSelectRegion = (regionId: string, regionName: string) => {
-    setActiveRegion({ id: regionId, name: regionName });
+  const handleSelectRegion = (regionId: string, regionName: string, initialSymptom?: string) => {
+    setActiveRegion({ id: regionId, name: regionName, initialSymptom });
   };
 
   // Save Symptom from Question Popup Modal
@@ -465,6 +465,7 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
               <SymptomPanel
                 regionId={activeRegion.id}
                 regionName={activeRegion.name}
+                initialSymptom={activeRegion.initialSymptom}
                 mappedSymptoms={mappedSymptoms}
                 existingSymptom={mappedSymptoms.find(s => s.bodyRegion === activeRegion.id)}
                 onSaveSymptom={handleSaveSymptom}
