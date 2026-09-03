@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, Keyboard, HelpCircle } from 'lucide-react';
+import { Mic, Keyboard, HelpCircle, FileText, Download } from 'lucide-react';
 import MedicalAvatar from './MedicalAvatar';
+import { DoctorSummaryPreviewModal } from './medikiosk/DoctorSummaryPreviewModal';
+import { openDoctorSummaryPdfWindow } from '../utils/generateDoctorSummaryPdf';
 
 export interface WelcomeProps {
   onStartIntake?: (mode: 'voice' | 'touch') => void;
@@ -16,6 +18,7 @@ export const Welcome: React.FC<WelcomeProps> = ({
   const [language, setLanguage] = useState<'en' | 'hi' | 'mr'>(initialLanguage);
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [showButtons, setShowButtons] = useState<boolean>(false);
+  const [showPdfModal, setShowPdfModal] = useState<boolean>(false);
 
   const handleLangChange = (lang: 'en' | 'hi' | 'mr') => {
     setLanguage(lang);
@@ -64,7 +67,7 @@ export const Welcome: React.FC<WelcomeProps> = ({
   const content = getContent();
 
   // Text-To-Speech Synthesis helper
-  const speakText = (lang: 'en' | 'hi' | 'mr') => {
+  const speakText = () => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
       setShowButtons(true);
       return;
@@ -107,7 +110,7 @@ export const Welcome: React.FC<WelcomeProps> = ({
     setShowButtons(false);
 
     const timer = setTimeout(() => {
-      speakText(language);
+      speakText();
     }, 300);
 
     // Fallback timer: ensure buttons popup even if browser speech is blocked/unsupported
@@ -125,7 +128,7 @@ export const Welcome: React.FC<WelcomeProps> = ({
   }, [language]);
 
   const handleManualReplay = () => {
-    speakText(language);
+    speakText();
   };
 
   return (
@@ -199,8 +202,31 @@ export const Welcome: React.FC<WelcomeProps> = ({
         )}
       </div>
 
-      {/* Footer: Assistance & Language Bar */}
-      <div className="w-full pt-4 flex flex-col items-center space-y-3">
+      {/* Footer: Assistance, PDF Test Button & Language Bar */}
+      <div className="w-full pt-2 flex flex-col items-center space-y-3">
+        {/* Doctor Clinical Summary PDF Testing Button */}
+        <div className="flex items-center space-x-2">
+          <button
+            type="button"
+            onClick={() => setShowPdfModal(true)}
+            className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-sm flex items-center space-x-2 cursor-pointer border border-slate-800"
+            title="Preview & Download Doctor Clinical Summary (AMPATH Layout)"
+          >
+            <FileText className="w-4 h-4 text-blue-400" />
+            <span>Preview & Download Doctor Summary (PDF)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => openDoctorSummaryPdfWindow()}
+            className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer border border-slate-200"
+            title="Direct Print to PDF"
+          >
+            <Download className="w-3.5 h-3.5 text-slate-600" />
+            <span>PDF</span>
+          </button>
+        </div>
+
         <button
           type="button"
           onClick={() => alert('Hospital Assistant: Front desk staff have been notified to assist you.')}
@@ -241,6 +267,12 @@ export const Welcome: React.FC<WelcomeProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Doctor Summary Interactive Preview Modal */}
+      <DoctorSummaryPreviewModal
+        isOpen={showPdfModal}
+        onClose={() => setShowPdfModal(false)}
+      />
 
     </div>
   );

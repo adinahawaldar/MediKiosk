@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Check, CornerDownLeft } from 'lucide-react';
 import type { MappedSymptom } from './BodyModel';
-import { PATIENT_DEMO_DATA } from '../../data/patientDemoData';
 
 interface SymptomPanelProps {
   regionId: string;
@@ -25,12 +24,10 @@ export const SymptomPanel: React.FC<SymptomPanelProps> = ({
   regionId,
   regionName,
   initialSymptom,
-  mappedSymptoms = [],
   existingSymptom,
   onSaveSymptom,
   onClose,
 }) => {
-  const patientName = PATIENT_DEMO_DATA.name;
 
   // Adaptive Multi-Turn AI States (Turn 1: Primary Selection -> Turns 2-5: Deep Follow-up Questions)
   const [turnCount, setTurnCount] = useState<number>(1);

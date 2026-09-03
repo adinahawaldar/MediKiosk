@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, Trash2, CheckCircle2, Plus, Mic, CornerDownLeft, Activity, User, UserCheck, ArrowRight } from 'lucide-react';
+import { Sparkles, Trash2, CheckCircle2, Mic, CornerDownLeft, User, UserCheck, ArrowRight } from 'lucide-react';
 
 export interface MappedSymptom {
   bodyRegion: string;
@@ -11,6 +11,7 @@ export interface MappedSymptom {
     radiates?: boolean;
     radiatesTo?: string;
     abdmHistoryRelation?: string;
+    description?: string;
   };
 }
 
