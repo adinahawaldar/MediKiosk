@@ -156,11 +156,14 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
         setExtractedInfo(data.data.extractedInfo);
         setStatus('done');
 
-        speakSpeechSynthesis(aiText);
-
         if (data.data.audioBase64) {
-          const audio = new Audio(`data:audio/wav;base64,${data.data.audioBase64}`);
-          audio.play().catch(() => {});
+          const mime = data.data.format || 'audio/mp3';
+          const audio = new Audio(`data:${mime};base64,${data.data.audioBase64}`);
+          audio.play().catch(() => {
+            speakSpeechSynthesis(aiText);
+          });
+        } else {
+          speakSpeechSynthesis(aiText);
         }
       }
     } catch (err) {
