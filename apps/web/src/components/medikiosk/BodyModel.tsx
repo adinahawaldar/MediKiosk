@@ -265,21 +265,14 @@ export const BodyModel: React.FC<BodyModelProps> = ({
         </div>
       )}
 
-      {/* Main Enlarged 3D Standing Body Figure Scanner Frame */}
-      <div className="relative w-full max-w-3xl flex-1 flex items-center justify-center my-2 min-h-[580px] bg-gradient-to-b from-slate-50/60 via-white to-slate-50/40 rounded-3xl border border-slate-200/70 p-4 sm:p-6 shadow-sm">
-        
-        {/* Corner Accents */}
-        <div className="absolute top-4 left-4 w-4 h-4 border-t-2 border-l-2 border-slate-300 rounded-tl-sm pointer-events-none" />
-        <div className="absolute top-4 right-4 w-4 h-4 border-t-2 border-r-2 border-slate-300 rounded-tr-sm pointer-events-none" />
-        <div className="absolute bottom-4 left-4 w-4 h-4 border-b-2 border-l-2 border-slate-300 rounded-bl-sm pointer-events-none" />
-        <div className="absolute bottom-4 right-4 w-4 h-4 border-b-2 border-r-2 border-slate-300 rounded-br-sm pointer-events-none" />
-
+      {/* Main Enlarged 3D Standing Body Figure Container */}
+      <div className="relative w-full flex-1 flex items-center justify-center my-2 min-h-[580px] bg-white">
         <div className="relative w-[540px] sm:w-[580px] h-[560px] sm:h-[600px] flex items-center justify-center">
           {/* Standing 3D Body Figure Image (Enlarged) */}
           <img
             src={gender === 'male' ? '/assets/male_standing_3d.jpg' : '/assets/female_standing_3d.jpg'}
             alt={`${gender} 3D standing anatomical model`}
-            className="w-[360px] sm:w-[400px] h-full object-contain mix-blend-multiply select-none filter drop-shadow-sm"
+            className="w-[360px] sm:w-[400px] h-full object-contain mix-blend-multiply select-none"
           />
 
           {/* Interactive Target Nodes with Glassmorphic Floating Labels */}
