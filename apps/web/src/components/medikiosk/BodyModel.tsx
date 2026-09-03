@@ -145,6 +145,9 @@ export const BodyModel: React.FC<BodyModelProps> = ({
     } else if (query.includes('chest') || query.includes('breath') || query.includes('cough') || query.includes('heart')) {
       targetRegionId = 'chest';
       targetRegionName = 'Chest';
+    } else if (query.includes('kidney') || query.includes('urine') || query.includes('urinary') || query.includes('flank') || query.includes('lower back')) {
+      targetRegionId = 'kidney';
+      targetRegionName = 'Kidney / Lower Back';
     } else if (query.includes('shoulder')) {
       targetRegionId = 'right_shoulder';
       targetRegionName = 'Right Shoulder';
@@ -155,9 +158,9 @@ export const BodyModel: React.FC<BodyModelProps> = ({
       targetRegionId = 'right_hand';
       targetRegionName = 'Right Hand';
     } else {
-      // Default for vomiting / nausea / belly / stomach issues -> Stomach
-      targetRegionId = 'stomach';
-      targetRegionName = 'Stomach';
+      // Default fallback for abdominal/stomach/unspecified query
+      targetRegionId = query.includes('vomit') || query.includes('nausea') || query.includes('stomach') ? 'stomach' : 'general';
+      targetRegionName = query.charAt(0).toUpperCase() + query.slice(1);
     }
 
     onSelectRegion(targetRegionId, targetRegionName, customInputText.trim());
