@@ -309,6 +309,20 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
   return (
     <div className="w-full min-h-screen bg-white text-slate-900 font-sans flex flex-col justify-between items-center select-none">
       
+      {/* Top Header Bar with Top-Left Restart Button */}
+      {onBackToWelcome && (
+        <div className="w-full max-w-5xl flex items-center justify-start p-4 md:px-6">
+          <button
+            onClick={onBackToWelcome}
+            className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full bg-slate-100/90 hover:bg-slate-200/80 text-slate-700 text-xs font-semibold transition-all cursor-pointer border border-slate-200/80 shadow-2xs"
+            title="Return to Welcome Screen"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+            <span>Restart</span>
+          </button>
+        </div>
+      )}
+
       {/* Top Main Content Container */}
       <div className="w-full flex-1 flex flex-col items-center justify-center p-4 md:p-6">
 
