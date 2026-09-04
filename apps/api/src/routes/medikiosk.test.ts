@@ -98,7 +98,25 @@ test('MediKiosk API Lifecycle Test', async (t) => {
     assert.strictEqual(res.body.data.summary.opdToken, 'EMG-01');
   });
 
-  await t.test('6. DELETE /api/v1/medikiosk/session/:id securely wipes ephemeral session', async () => {
+  await t.test('6. POST /api/v1/medikiosk/submit-to-doctor creates consultation draft', async () => {
+    const res = await request(app)
+      .post('/api/v1/medikiosk/submit-to-doctor')
+      .send({
+        patientProfile: { name: 'Rahul Sharma', age: 34, gender: 'Male', mobile: '9876543210', abhaNumber: '91-9876-5432-1098' },
+        chiefComplaint: 'Chest Pain & Shortness of Breath',
+        socrates: { site: 'Center of chest', onset: '2 hours ago', severity: 'Severe' },
+        triage: 'RED',
+        redFlags: ['CRITICAL: Potential Acute Coronary Syndrome'],
+      });
+
+    assert.strictEqual(res.status, 201);
+    assert.strictEqual(res.body.success, true);
+    assert.ok(res.body.data.consultationId);
+    assert.strictEqual(res.body.data.priority, 'emergency');
+    assert.strictEqual(res.body.data.opdToken, 'EMG-01');
+  });
+
+  await t.test('7. DELETE /api/v1/medikiosk/session/:id securely wipes ephemeral session', async () => {
     const wipeRes = await request(app).delete(`/api/v1/medikiosk/session/${sessionId}`);
     assert.strictEqual(wipeRes.status, 200);
     assert.strictEqual(wipeRes.body.data.memoryWiped, true);
@@ -107,3 +125,4 @@ test('MediKiosk API Lifecycle Test', async (t) => {
     assert.strictEqual(getRes.status, 404);
   });
 });
+

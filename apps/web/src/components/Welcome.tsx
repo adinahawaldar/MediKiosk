@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, Keyboard, HelpCircle, Download } from 'lucide-react';
+import { Mic, Keyboard, HelpCircle } from 'lucide-react';
 import MedicalAvatar from './MedicalAvatar';
 
 export interface WelcomeProps {
@@ -199,26 +199,8 @@ export const Welcome: React.FC<WelcomeProps> = ({
         )}
       </div>
 
-      {/* Footer: Assistance, PDF Test Button & Language Bar */}
+      {/* Footer: Assistance & Language Bar */}
       <div className="w-full pt-2 flex flex-col items-center space-y-3">
-        {/* Direct Download Doctor Clinical Summary CTA Button */}
-        <button
-          type="button"
-          onClick={() => {
-            const link = document.createElement('a');
-            link.href = '/assets/Doctor_Clinical_Summary_00366.html';
-            link.download = 'Doctor_Clinical_Summary_00366.html';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-          }}
-          className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-md flex items-center space-x-2 cursor-pointer border border-slate-800 hover:scale-105 active:scale-95"
-          title="Direct Download Doctor Clinical Summary Document"
-        >
-          <Download className="w-4 h-4 text-blue-400" />
-          <span>Download Doctor Summary (PDF)</span>
-        </button>
-
         <button
           type="button"
           onClick={() => alert('Hospital Assistant: Front desk staff have been notified to assist you.')}

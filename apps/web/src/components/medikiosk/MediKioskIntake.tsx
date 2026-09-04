@@ -618,44 +618,56 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
             {/* Doctor Summary PDF Button */}
             <button
               onClick={() => {
+                const primarySocrates = mappedSymptoms[0]?.additionalDetails?.socrates || {};
                 downloadDoctorSummaryPdfWithPuppeteer({
                   patientName: patientProfile?.name || 'Rahul Sharma',
-                  age: patientProfile?.age ? `${patientProfile.age} Yrs` : '43 Yrs 8 Months',
+                  age: patientProfile?.age ? `${patientProfile.age} Yrs` : '34 Yrs',
                   gender: patientProfile?.gender || 'Male',
-                  ampathId: '00366',
-                  careSite: 'MTRH',
-                  maritalStatus: 'Married',
-                  benefitCategory: 'MTCT-Plus',
-                  numChildren: 4,
-                  initialVisitDate: '26/11/2002',
+                  ampathId: patientProfile?.abhaNumber || abhaNumber || '91-9876-5432-1098',
+                  careSite: summaryData.summary?.recommendedRoom || 'Room 104 (General Medicine OPD)',
+                  maritalStatus: 'Verified ABHA',
+                  benefitCategory: 'ABDM Health Account',
+                  numChildren: 0,
+                  initialVisitDate: new Date().toLocaleDateString('en-GB'),
                   summaryDate: new Date().toLocaleDateString('en-GB'),
+                  chiefComplaint: mappedSymptoms.map(s => `${s.bodyRegion.toUpperCase()}: ${s.symptom}`).join(', ') || 'General Consultation',
+                  socrates: [
+                    { label: 'Site / Location', value: primarySocrates.site || mappedSymptoms[0]?.bodyRegion || 'Reported region' },
+                    { label: 'Onset / Duration', value: primarySocrates.onset || mappedSymptoms[0]?.duration || 'Started recently' },
+                    { label: 'Character', value: primarySocrates.character || 'Pain / Discomfort' },
+                    { label: 'Radiation', value: primarySocrates.radiation || 'None reported' },
+                    { label: 'Associated Symptoms', value: primarySocrates.associatedSymptoms || 'None reported' },
+                    { label: 'Triggers / Exacerbation', value: primarySocrates.triggers || 'None reported' },
+                    { label: 'Pain Severity', value: primarySocrates.severity || mappedSymptoms[0]?.severity || 'Moderate' },
+                  ],
+                  triage: {
+                    level: summaryData.triage || 'GREEN',
+                    priority: summaryData.triage === 'RED' ? 'EMERGENCY' : summaryData.triage === 'AMBER' ? 'URGENT' : 'ROUTINE',
+                    reason: summaryData.redFlags?.join('; ') || 'Standard Outpatient Intake',
+                  },
                   medicalHistory: mappedSymptoms.map(s => ({
                     condition: `${s.bodyRegion.toUpperCase().replace('_', ' ')}: ${s.symptom.toUpperCase()}`,
                     date: new Date().toLocaleDateString('en-GB')
                   })),
-                  arvTreatmentBefore: 'Yes None Or Not Indicated',
-                  initialArvRegimen: '03/09/2003 Lamivudine Stavudine Nevirapine',
-                  currentArvRegimen: 'Lamivudine Stavudine Nevirapine',
+                  arvTreatmentBefore: 'Not Applicable',
+                  initialArvRegimen: 'None',
+                  currentArvRegimen: 'None',
                   antiTbDrugs: 'None',
-                  currentOiRegimen: '05/05/2004 Cotrimoxazole',
+                  currentOiRegimen: 'None',
                   otherDrugsLastVisit: 'None',
-                  adherence: 'Perfect',
+                  adherence: 'Verified',
                   vitalsAndLabs: [
-                    { param: 'WEIGHT', initial: { date: '26/11/2002', value: '58' }, lastThree: [{ date: '06/04/2004', value: '75' }, { date: '07/04/2004', value: '75' }, { date: '05/05/2004', value: '74' }] },
-                    { param: 'SAO2', initial: { date: '26/11/2002', value: '98' }, lastThree: [{ date: '06/04/2004', value: '96' }, { date: '07/04/2004', value: '95' }, { date: '05/05/2004', value: '92' }] },
-                    { param: 'HEMOGLOBIN', initial: { date: '12/09/2002', value: '12.1' }, lastThree: [{ date: '22/05/2003', value: '12.3' }] },
-                    { param: 'WHITE BLOOD CELLS', initial: { date: '12/09/2002', value: '5700' }, lastThree: [{ date: '22/05/2003', value: '5200' }] },
-                    { param: 'CD4', initial: { date: '12/09/2002', value: '54' }, lastThree: [{ date: '26/07/2003', value: '175' }, { date: '07/04/2004', value: '170' }] },
-                    { param: 'CHEST X-RAY', initial: { date: '26/11/2002', value: 'NAD' }, lastThree: [] },
-                    { param: 'ALC', initial: { date: '12/09/2002', value: '2200' }, lastThree: [] },
-                    { param: 'PLATELETS', initial: { date: '12/09/2002', value: '355000' }, lastThree: [{ date: '22/05/2003', value: '353000' }] },
-                    { param: 'SGPT', initial: { date: '26/11/2002', value: '40.9' }, lastThree: [{ date: '07/04/2004', value: '14' }] }
+                    { param: 'TEMPERATURE', initial: { date: new Date().toLocaleDateString('en-GB'), value: '98.6 °F' }, lastThree: [] },
+                    { param: 'BLOOD PRESSURE', initial: { date: new Date().toLocaleDateString('en-GB'), value: '120/80 mmHg' }, lastThree: [] },
+                    { param: 'PULSE RATE', initial: { date: new Date().toLocaleDateString('en-GB'), value: '72 bpm' }, lastThree: [] },
+                    { param: 'SAO2 (OXYGEN)', initial: { date: new Date().toLocaleDateString('en-GB'), value: '98%' }, lastThree: [] }
                   ],
                   clinicalNotes: [
-                    `Intake Chief Complaints: ${mappedSymptoms.map(s => `${s.bodyRegion}: ${s.symptom}`).join(', ') || 'General Assessment'}`,
-                    `Token Assigned: ${summaryData.summary?.opdToken || 'OPD-104'} (${summaryData.summary?.recommendedRoom || 'General OPD'})`,
-                    'Adherence: Perfect. Continue Cotrimoxazole & ARV regimen.',
-                    'Note: Draft summary generated by MediKiosk Intake Engine. Requires treating physician sign-off.'
+                    `Chief Complaints: ${mappedSymptoms.map(s => `${s.bodyRegion}: ${s.symptom}`).join(', ') || 'General Assessment'}`,
+                    `Token Assigned: ${summaryData.summary?.opdToken || 'OPD-104'} | Room: ${summaryData.summary?.recommendedRoom || 'Room 104'}`,
+                    `SOCRATES Breakdown: Site: ${primarySocrates.site || 'Reported area'} | Onset: ${primarySocrates.onset || 'Recent'} | Character: ${primarySocrates.character || 'Pain'} | Severity: ${primarySocrates.severity || 'Moderate'}`,
+                    `Triage Status: ${summaryData.triage || 'GREEN'} (${summaryData.redFlags?.length ? summaryData.redFlags.join('; ') : 'No critical red flags'})`,
+                    'Note: Draft summary generated by Aethera AI Engine. Requires treating physician sign-off.'
                   ]
                 });
               }}

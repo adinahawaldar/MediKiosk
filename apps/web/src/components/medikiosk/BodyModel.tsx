@@ -12,6 +12,7 @@ export interface MappedSymptom {
     radiatesTo?: string;
     abdmHistoryRelation?: string;
     description?: string;
+    socrates?: Record<string, any>;
   };
 }
 

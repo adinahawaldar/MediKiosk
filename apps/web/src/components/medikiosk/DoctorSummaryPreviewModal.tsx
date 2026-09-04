@@ -1,11 +1,8 @@
-import React, { useState } from 'react';
-import { X, Printer, Download, FileText, CheckCircle, Loader2, ExternalLink } from 'lucide-react';
+import React from 'react';
+import { X, FileText, CheckCircle, ExternalLink } from 'lucide-react';
 import {
   DEFAULT_STATIC_SUMMARY_DATA,
-  downloadDoctorSummaryPdfDirect,
-  openDoctorSummaryPdfWindow,
   openDocGeneratorHtmlWindow,
-  generateSummaryHTMLString,
 } from '../../utils/generateDoctorSummaryPdf';
 
 interface DoctorSummaryPreviewModalProps {
@@ -14,40 +11,12 @@ interface DoctorSummaryPreviewModalProps {
 }
 
 export const DoctorSummaryPreviewModal: React.FC<DoctorSummaryPreviewModalProps> = ({ isOpen, onClose }) => {
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false);
-
   if (!isOpen) return null;
 
   const data = DEFAULT_STATIC_SUMMARY_DATA;
 
-  const handleDownloadHtml = () => {
-    const htmlString = generateSummaryHTMLString(data);
-    const blob = new Blob([htmlString], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Doctor_Clinical_Summary_${data.ampathId}.html`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
   const handleOpenDocGenerator = () => {
     openDocGeneratorHtmlWindow(data);
-  };
-
-  const handleDownloadPdf = async () => {
-    setIsGeneratingPdf(true);
-    try {
-      await downloadDoctorSummaryPdfDirect(data);
-    } finally {
-      setIsGeneratingPdf(false);
-    }
-  };
-
-  const handlePrintPdf = () => {
-    openDoctorSummaryPdfWindow(data);
   };
 
   return (
