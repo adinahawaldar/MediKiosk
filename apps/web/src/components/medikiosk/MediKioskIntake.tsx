@@ -15,7 +15,6 @@ import {
   Printer
 } from 'lucide-react';
 import { downloadDoctorSummaryPdfWithPuppeteer } from '../../utils/generateDoctorSummaryPdf';
-import DocumentUpload from './DocumentUpload';
 
 interface MediKioskIntakeProps {
   onBackToWelcome?: () => void;
@@ -472,8 +471,6 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
             >
               {isLoading ? <span>Loading Body Model...</span> : <span>{getTx('Confirm & Open Body Model →')}</span>}
             </button>
-
-            <DocumentUpload patientProfile={patientProfile} />
           </div>
         )}
 
