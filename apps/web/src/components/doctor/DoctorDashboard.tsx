@@ -530,181 +530,114 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
           )}
         </div>
 
-        {/* Selected Clinical Report Drawer (7 Cols - Compact & Set Away with Left Border) */}
-        <div className="lg:col-span-7 flex flex-col h-[720px] lg:pl-8 lg:border-l lg:border-slate-200">
+        {/* Selected Clinical Report Drawer (7 Cols - Compact Basic Details & Set Away) */}
+        <div className="lg:col-span-7 flex flex-col h-[720px] lg:pl-10 lg:border-l lg:border-slate-200">
           {selectedConsultation ? (
             <div className="overflow-y-auto flex-1 pr-2 space-y-4 scrollbar-thin">
-              {/* Compact Patient Header */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-3 border-b border-slate-200 gap-2">
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <h2 className="text-lg font-black text-slate-900 tracking-tight">
-                      {selectedConsultation.patientId?.firstName} {selectedConsultation.patientId?.lastName}
-                    </h2>
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-slate-100 border border-slate-200 font-bold text-slate-600 uppercase">
-                      {selectedConsultation.patientId?.gender || 'Adult'}
+              {/* Patient Header Card */}
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <h2 className="text-lg font-black text-slate-900 tracking-tight">
+                        {selectedConsultation.patientId?.firstName} {selectedConsultation.patientId?.lastName}
+                      </h2>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-700 uppercase">
+                        {selectedConsultation.patientId?.gender || 'Adult'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5">
+                      ID: <span className="font-mono font-bold text-slate-700">{selectedConsultation.patientId?.hospitalId}</span> • Phone: {selectedConsultation.patientId?.phone}
+                    </p>
+                  </div>
+
+                  <div>
+                    <span className={`px-2.5 py-1 rounded text-[10px] font-black uppercase border tracking-wider ${
+                      selectedConsultation.priority === 'emergency'
+                        ? 'bg-rose-100 text-rose-800 border-rose-200'
+                        : selectedConsultation.priority === 'urgent'
+                        ? 'bg-amber-100 text-amber-800 border-amber-200'
+                        : 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                    }`}>
+                      {selectedConsultation.priority} TRIAGE
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 font-medium mt-0.5">
-                    Phone: {selectedConsultation.patientId?.phone} • Hospital ID: {selectedConsultation.patientId?.hospitalId}
-                  </p>
                 </div>
 
-                <div className="flex items-center space-x-2">
+                {/* Primary CTA: Open Summary PDF/Report */}
+                <div className="pt-2.5 border-t border-slate-200/60 flex items-center justify-between">
+                  <span className="text-xs text-slate-500 font-medium">Intake & Past Records:</span>
                   <button
                     type="button"
                     onClick={() => void openSummary(selectedConsultation)}
-                    className="px-3.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center space-x-1 shadow-sm transition-all cursor-pointer"
+                    className="px-3.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-900 rounded-lg text-xs font-extrabold uppercase tracking-wider flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer"
                   >
-                    <span>📄 Open Summary Report</span>
-                  </button>
-                  <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase border ${
-                    selectedConsultation.priority === 'emergency'
-                      ? 'bg-rose-50 text-rose-800 border-rose-200'
-                      : selectedConsultation.priority === 'urgent'
-                      ? 'bg-amber-50 text-amber-800 border-amber-200'
-                      : 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                  }`}>
-                    {selectedConsultation.priority} TRIAGE
-                  </span>
-                </div>
-              </div>
-
-              {/* Compact Medical History & Allergies */}
-              <div className="py-2.5 border-b border-slate-100 text-xs space-y-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block">
-                  Medical History & Allergies
-                </span>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-bold text-slate-700">Allergies:</span>
-                  {selectedConsultation.patientId?.allergies && selectedConsultation.patientId.allergies.length > 0 ? (
-                    selectedConsultation.patientId.allergies.map((allergy, idx) => (
-                      <span key={idx} className="px-2 py-0.5 bg-rose-50 border border-rose-200 text-rose-700 font-bold text-[10px] rounded">
-                        {allergy}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-slate-500 font-medium">None known</span>
-                  )}
-                </div>
-                <div className="text-slate-600 font-medium text-[11px]">
-                  <span className="font-bold text-slate-700">History: </span>
-                  {selectedConsultation.patientId?.medicalHistory?.join(' • ') || 'No prior medical conditions recorded.'}
-                </div>
-              </div>
-
-              {/* Safety Alert Banner */}
-              {selectedConsultation.triageNotes && (
-                <div className="py-3 border-b border-slate-100 text-slate-900">
-                  <span className="text-[10px] font-black uppercase tracking-widest block mb-1 text-slate-500">
-                    Clinical Intake Notes
-                  </span>
-                  <p className="text-xs font-semibold leading-relaxed">{selectedConsultation.triageNotes}</p>
-                </div>
-              )}
-
-              {/* Triage Adjustment Section */}
-              <div className="py-3 border-b border-slate-100 space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-xs font-black uppercase tracking-wider text-slate-900">
-                    Triage Score: <span className="text-slate-700">{selectedConsultation.triageScore ?? 0}/100</span>
-                  </span>
-                  <span className="text-[10px] text-slate-500 font-medium">Physician override logged</span>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <select
-                    value={triageOverride}
-                    onChange={(e) => setTriageOverride(e.target.value as any)}
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-slate-800"
-                  >
-                    <option value="emergency">Emergency / RED</option>
-                    <option value="urgent">Urgent / AMBER</option>
-                    <option value="routine">Routine / GREEN</option>
-                  </select>
-                  <input
-                    value={triageOverrideReason}
-                    onChange={(e) => setTriageOverrideReason(e.target.value)}
-                    placeholder="Reason for triage adjustment..."
-                    className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-800"
-                  />
-                  <button
-                    onClick={handleTriageOverride}
-                    disabled={isSavingTriage || !triageOverrideReason.trim()}
-                    className="rounded-xl bg-white hover:bg-slate-50 border border-slate-300 px-4 py-2 text-xs font-extrabold text-slate-800 disabled:opacity-50 transition-all cursor-pointer shadow-sm"
-                  >
-                    {isSavingTriage ? 'Saving...' : 'Save Triage'}
+                    <span>📄 Open Full Summary Report</span>
                   </button>
                 </div>
               </div>
 
-              {/* Structured SOAP Clinical Report (Unboxed Clean Sections) */}
-              <div className="space-y-4">
-                <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 border-b border-slate-200 pb-2">
-                  AI Pre-Consultation Intake Report (SOAP)
+              {/* Basic Patient Details Card */}
+              <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-3">
+                <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">
+                  Basic Patient Overview
                 </h3>
 
-                {/* S - Subjective */}
-                <div className="py-3 border-b border-slate-100 text-xs space-y-1.5">
-                  <span className="font-extrabold text-slate-900 uppercase tracking-wider block text-[11px]">
-                    [S] Subjective & SOCRATES Breakdown
-                  </span>
-                  <div className="text-slate-700 whitespace-pre-line font-medium leading-relaxed">
-                    {selectedConsultation.soapNotes?.subjective || selectedConsultation.symptoms.join('\n')}
+                <div className="space-y-3 text-xs">
+                  <div>
+                    <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px] block mb-1">Chief Concern & Symptoms</span>
+                    <p className="font-semibold text-slate-900 leading-relaxed">
+                      {selectedConsultation.symptoms.join(', ') || 'General consultation'}
+                    </p>
                   </div>
-                </div>
 
-                {/* O - Objective */}
-                <div className="py-3 border-b border-slate-100 text-xs space-y-1.5">
-                  <span className="font-extrabold text-slate-900 uppercase tracking-wider block text-[11px]">
-                    [O] Objective Kiosk Vitals & Data
-                  </span>
-                  <p className="text-slate-700 font-medium">
-                    {selectedConsultation.soapNotes?.objective || 'Digital kiosk check-in verified. Vitals recorded.'}
-                  </p>
-                </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+                    <div>
+                      <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px] block mb-1">Allergies & Sensitivities</span>
+                      <div className="flex flex-wrap gap-1">
+                        {selectedConsultation.patientId?.allergies && selectedConsultation.patientId.allergies.length > 0 ? (
+                          selectedConsultation.patientId.allergies.map((allergy, idx) => (
+                            <span key={idx} className="px-2 py-0.5 bg-rose-50 border border-rose-200 text-rose-700 font-bold text-[10px] rounded">
+                              {allergy}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-slate-500 font-medium">None known</span>
+                        )}
+                      </div>
+                    </div>
 
-                {/* A - Assessment */}
-                <div className="py-3 border-b border-slate-100 text-xs space-y-1.5">
-                  <span className="font-extrabold text-slate-900 uppercase tracking-wider block text-[11px]">
-                    [A] AI Clinical Assessment & Triage
-                  </span>
-                  <p className="text-slate-700 font-medium whitespace-pre-line">
-                    {selectedConsultation.soapNotes?.assessment || selectedConsultation.diagnosis}
-                  </p>
-                </div>
-
-                {/* P - Plan */}
-                <div className="py-3 text-xs space-y-1.5">
-                  <span className="font-extrabold text-slate-900 uppercase tracking-wider block text-[11px]">
-                    [P] Care Plan & Disposition
-                  </span>
-                  <p className="text-slate-700 font-medium whitespace-pre-line">
-                    {selectedConsultation.soapNotes?.plan || 'Proceed with physical examination.'}
-                  </p>
+                    <div>
+                      <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px] block mb-1">Past Records & Medical History</span>
+                      <p className="text-slate-700 font-medium text-[11px]">
+                        {selectedConsultation.patientId?.medicalHistory?.join(' • ') || 'No prior history'}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Doctor Sign-off Box */}
-              <div className="pt-4 border-t border-slate-200 space-y-3">
+              {/* Quick Physician Notes & Complete Consultation */}
+              <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-3">
                 <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
-                  Physician Treatment Plan & Sign-off Notes:
+                  Physician Consultation Notes & Treatment Plan:
                 </label>
                 <textarea
-                  rows={3}
+                  rows={2}
                   value={doctorNotes}
                   onChange={(e) => setDoctorNotes(e.target.value)}
-                  placeholder="Enter physician diagnosis, prescription orders, or discharge remarks..."
-                  className="w-full p-3.5 bg-white border border-slate-300 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-800 resize-none"
+                  placeholder="Enter quick prescription or remarks..."
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-slate-400 resize-none"
                 />
 
-                <div className="flex justify-end space-x-3">
+                <div className="flex justify-end pt-1">
                   <button
                     type="button"
                     onClick={handleSignOff}
                     disabled={isSigningOff}
-                    className="px-6 py-3 bg-white hover:bg-slate-50 border border-slate-300 text-slate-900 rounded-xl text-xs font-extrabold uppercase tracking-wider shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                    className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-900 rounded-lg text-xs font-extrabold uppercase tracking-wider shadow-sm transition-all cursor-pointer disabled:opacity-50"
                   >
-                    {isSigningOff ? 'Signing Off...' : 'Sign Off & Complete Consultation'}
+                    {isSigningOff ? 'Completing...' : 'Complete Consultation'}
                   </button>
                 </div>
               </div>
@@ -713,7 +646,7 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
             <div className="my-auto text-center py-20 text-slate-400 space-y-2">
               <h3 className="text-sm font-bold text-slate-600 uppercase tracking-wider">No Patient Selected</h3>
               <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                Select a patient from the waiting queue on the left to inspect their SOCRATES intake report.
+                Select a patient from the waiting queue on the left to inspect their basic details.
               </p>
             </div>
           )}
