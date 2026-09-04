@@ -20,5 +20,9 @@
   "devDependencies": {
     "concurrently": "^8.2.2",
     "typescript": "^5.3.3"
+  },
+  "allowScripts": {
+    "esbuild": true,
+    "puppeteer": true
   }
 }
