@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
-import { X, Printer, Download, FileText, CheckCircle, Loader2 } from 'lucide-react';
-import { DEFAULT_STATIC_SUMMARY_DATA, downloadDoctorSummaryPdfWithPuppeteer, openDoctorSummaryPdfWindow, generateSummaryHTMLString } from '../../utils/generateDoctorSummaryPdf';
+import { X, Printer, Download, FileText, CheckCircle, Loader2, ExternalLink } from 'lucide-react';
+import {
+  DEFAULT_STATIC_SUMMARY_DATA,
+  downloadDoctorSummaryPdfDirect,
+  openDoctorSummaryPdfWindow,
+  openDocGeneratorHtmlWindow,
+  generateSummaryHTMLString,
+} from '../../utils/generateDoctorSummaryPdf';
 
 interface DoctorSummaryPreviewModalProps {
   isOpen: boolean;
@@ -27,10 +33,14 @@ export const DoctorSummaryPreviewModal: React.FC<DoctorSummaryPreviewModalProps>
     URL.revokeObjectURL(url);
   };
 
+  const handleOpenDocGenerator = () => {
+    openDocGeneratorHtmlWindow(data);
+  };
+
   const handleDownloadPdf = async () => {
     setIsGeneratingPdf(true);
     try {
-      await downloadDoctorSummaryPdfWithPuppeteer(data);
+      await downloadDoctorSummaryPdfDirect(data);
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -61,7 +71,7 @@ export const DoctorSummaryPreviewModal: React.FC<DoctorSummaryPreviewModalProps>
               onClick={handleDownloadPdf}
               disabled={isGeneratingPdf}
               className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer shadow-sm disabled:opacity-70"
-              title="Download PDF via Puppeteer"
+              title="Download PDF Direct via html2pdf"
             >
               {isGeneratingPdf ? (
                 <>
@@ -71,9 +81,18 @@ export const DoctorSummaryPreviewModal: React.FC<DoctorSummaryPreviewModalProps>
               ) : (
                 <>
                   <Download className="w-4 h-4" />
-                  <span>Download PDF (Puppeteer)</span>
+                  <span>Download PDF Direct</span>
                 </>
               )}
+            </button>
+
+            <button
+              onClick={handleOpenDocGenerator}
+              className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer"
+              title="Open standalone docgenerator.html file"
+            >
+              <ExternalLink className="w-4 h-4 text-blue-400" />
+              <span>Doc Generator (.html)</span>
             </button>
 
             <button
@@ -88,7 +107,7 @@ export const DoctorSummaryPreviewModal: React.FC<DoctorSummaryPreviewModalProps>
             <button
               onClick={handleDownloadHtml}
               className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer"
-              title="Download HTML File"
+              title="Download Raw HTML File"
             >
               <Download className="w-4 h-4" />
               <span>HTML File</span>
@@ -276,7 +295,7 @@ export const DoctorSummaryPreviewModal: React.FC<DoctorSummaryPreviewModalProps>
               ) : (
                 <>
                   <Download className="w-4 h-4 text-blue-400" />
-                  <span>Download PDF (Puppeteer) →</span>
+                  <span>Download PDF Direct →</span>
                 </>
               )}
             </button>

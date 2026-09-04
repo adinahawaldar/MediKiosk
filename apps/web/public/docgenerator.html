@@ -3,20 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AMPATH Guide Adult Summary - HospitalOS Doctor Clinical Report</title>
+  <title>AMPATH Guide Adult Summary - HospitalOS Doctor Clinical Report Generator</title>
   <!-- Client-side HTML to PDF converter (Amira Law PDF Generator Pattern) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <style>
     @page {
       size: A4 portrait;
-      margin: 12mm 15mm 12mm 15mm;
+      margin: 10mm 12mm 10mm 12mm;
     }
     
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       font-family: Arial, Helvetica, sans-serif;
       font-size: 11px;
       color: #000000;
-      background-color: #ffffff;
+      background-color: #f8fafc;
       margin: 0;
       padding: 20px;
       line-height: 1.3;
@@ -26,59 +30,100 @@
     @media print {
       body {
         padding: 0;
+        background-color: #ffffff;
       }
       .no-print {
         display: none !important;
       }
     }
 
-    /* Action bar for testing download/print */
+    /* Action bar for PDF download and printing */
     .no-print {
-      background-color: #1e293b;
+      background-color: #0f172a;
       color: #ffffff;
-      padding: 12px 20px;
-      border-radius: 8px;
-      margin-bottom: 20px;
+      padding: 14px 24px;
+      border-radius: 12px;
+      margin-bottom: 24px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      max-width: 850px;
+      margin-left: auto;
+      margin-right: auto;
     }
     .no-print h2 {
       margin: 0;
-      font-size: 14px;
-      font-weight: bold;
+      font-size: 15px;
+      font-weight: 800;
+      color: #f8fafc;
+      letter-spacing: -0.2px;
     }
-    .no-print button {
+    .no-print p {
+      margin: 2px 0 0 0;
+      font-size: 11px;
+      color: #94a3b8;
+    }
+    .btn-group {
+      display: flex;
+      gap: 10px;
+    }
+    .btn-download {
       background-color: #2563eb;
       color: #ffffff;
       border: none;
-      padding: 8px 16px;
+      padding: 9px 18px;
       font-size: 12px;
-      font-weight: bold;
-      border-radius: 6px;
+      font-weight: 700;
+      border-radius: 8px;
       cursor: pointer;
-      transition: background 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
     }
-    .no-print button:hover {
+    .btn-download:hover {
       background-color: #1d4ed8;
+      transform: translateY(-1px);
+    }
+    .btn-print {
+      background-color: #334155;
+      color: #f1f5f9;
+      border: none;
+      padding: 9px 16px;
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+    .btn-print:hover {
+      background-color: #475569;
     }
 
-    /* Main Container */
+    /* Document Container */
     .summary-container {
       width: 100%;
       max-width: 800px;
       margin: 0 auto;
-      border: 1px solid #ffffff;
+      background-color: #ffffff;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+      border: 1px solid #e2e8f0;
     }
 
-    /* Header */
+    /* Document Title Header */
     .doc-header {
       text-align: center;
       font-size: 16px;
       font-weight: bold;
       text-decoration: underline;
-      margin-bottom: 12px;
+      margin-bottom: 14px;
       letter-spacing: 0.3px;
     }
 
@@ -97,7 +142,7 @@
       grid-template-columns: 1.5fr 1.2fr 1fr;
       row-gap: 4px;
       column-gap: 12px;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
     }
 
     .field-label {
@@ -117,7 +162,7 @@
     }
 
     .history-table td {
-      padding: 2px 0;
+      padding: 2.5px 0;
       font-weight: bold;
       font-size: 10.5px;
     }
@@ -220,14 +265,14 @@
       padding-top: 4px;
     }
   </style>
-</head>
 <body>
 
+  <!-- Main Printable Document Container -->
   <div class="summary-container" id="summary-doc">
 
     <!-- Document Title Header -->
     <div class="doc-header">
-      AMPATH Guide Adult Summary as of: 09/06/2004
+      AMPATH Guide Adult Summary as of: <span id="summary-date">09/06/2004</span>
     </div>
 
     <!-- Personal History -->
@@ -242,7 +287,7 @@
         Benefit Category: <span class="field-val">MTCT-Plus</span>
       </div>
       <div>
-        AMPATH ID: <span class="field-val">00366</span><br>
+        AMPATH ID: <span class="field-val" id="ampath-id">00366</span><br>
         Care Site: <span class="field-val">MTRH</span><br>
         Marital Status: <span class="field-val">Married</span><br>
         Number Of Children: <span class="field-val">4</span>
@@ -392,20 +437,28 @@
       </div>
     </div>
 
+  </div>
+
   <script>
+    /**
+     * Direct Client-Side PDF Generation (Amira Law PDF Generator workflow)
+     */
     function downloadPDF() {
       const element = document.getElementById('summary-doc');
+      const ampathId = document.getElementById('ampath-id')?.innerText.trim() || '00366';
+      
       const opt = {
         margin: [10, 10, 10, 10],
-        filename: 'Doctor_Clinical_Summary_00366.pdf',
+        filename: `Doctor_Clinical_Summary_${ampathId}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true, logging: false },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
+
       if (window.html2pdf) {
         html2pdf().set(opt).from(element).save();
       } else {
-        alert('html2pdf library loading... Please wait a moment.');
+        alert('html2pdf library loading... Please wait a moment and try again or use Print Window.');
         window.print();
       }
     }
