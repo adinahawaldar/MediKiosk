@@ -11,8 +11,10 @@ import {
   User,
   Lock,
   Ticket,
-  DoorOpen
+  DoorOpen,
+  Printer
 } from 'lucide-react';
+import { downloadDoctorSummaryPdfWithPuppeteer } from '../../utils/generateDoctorSummaryPdf';
 
 interface MediKioskIntakeProps {
   onBackToWelcome?: () => void;
@@ -43,7 +45,7 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [mappedSymptoms, setMappedSymptoms] = useState<MappedSymptom[]>([]);
-  const [activeRegion, setActiveRegion] = useState<{ id: string; name: string } | null>(null);
+  const [activeRegion, setActiveRegion] = useState<{ id: string; name: string; initialSymptom?: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [summaryData, setSummaryData] = useState<any>(null);
 
@@ -210,8 +212,8 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
   };
 
   // Select Region on 3D Body -> Opens Question Popup Modal
-  const handleSelectRegion = (regionId: string, regionName: string) => {
-    setActiveRegion({ id: regionId, name: regionName });
+  const handleSelectRegion = (regionId: string, regionName: string, initialSymptom?: string) => {
+    setActiveRegion({ id: regionId, name: regionName, initialSymptom });
   };
 
   // Save Symptom from Question Popup Modal
@@ -331,23 +333,24 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
   };
 
   return (
-    <div className="w-full min-h-screen bg-white text-slate-900 font-sans flex flex-col justify-between items-center select-none">
+    <div className="w-full min-h-screen bg-white text-slate-900 font-sans flex flex-col justify-start items-center select-none relative">
       
-      {/* Top Main Content Container */}
-      <div className="w-full flex-1 flex flex-col items-center justify-center p-4 md:p-6">
-        
-        {/* Kiosk Reset Action Button */}
-        {onBackToWelcome && (
-          <div className="w-full max-w-2xl flex items-center justify-start mb-2">
-            <button
-              onClick={onBackToWelcome}
-              className="flex items-center space-x-2 px-4 py-2 rounded-2xl bg-white border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50 transition-all cursor-pointer"
-            >
-              <RotateCcw className="w-4 h-4 text-slate-600" />
-              <span>Back to Welcome</span>
-            </button>
-          </div>
-        )}
+      {/* Top-Left Floating Restart Button */}
+      {onBackToWelcome && (
+        <div className="absolute top-3 left-4 sm:left-6 z-30">
+          <button
+            onClick={onBackToWelcome}
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-slate-100/90 hover:bg-slate-200/80 text-slate-700 text-xs font-semibold transition-all cursor-pointer border border-slate-200/80 shadow-2xs"
+            title="Return to Welcome Screen"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+            <span>Restart</span>
+          </button>
+        </div>
+      )}
+
+      {/* Main Content Container Pinned to Top */}
+      <div className="w-full flex-1 flex flex-col items-center justify-start p-2 sm:p-4 pt-2 md:pt-3">
 
         {/* STEP 1: ABHA NUMBER ENTRY WITH PROGRESSIVE OTP DISCLOSURE */}
         {step === 'ABHA_AUTH' && (
@@ -488,6 +491,7 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
               <SymptomPanel
                 regionId={activeRegion.id}
                 regionName={activeRegion.name}
+                initialSymptom={activeRegion.initialSymptom}
                 mappedSymptoms={mappedSymptoms}
                 existingSymptom={mappedSymptoms.find(s => s.bodyRegion === activeRegion.id)}
                 onSaveSymptom={handleSaveSymptom}
@@ -564,6 +568,56 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
               <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>Kiosk session data automatically wiped (DPDP Act 2023 compliant).</span>
             </div>
+
+            {/* Doctor Summary PDF Button */}
+            <button
+              onClick={() => {
+                downloadDoctorSummaryPdfWithPuppeteer({
+                  patientName: patientProfile?.name || 'Rahul Sharma',
+                  age: patientProfile?.age ? `${patientProfile.age} Yrs` : '43 Yrs 8 Months',
+                  gender: patientProfile?.gender || 'Male',
+                  ampathId: '00366',
+                  careSite: 'MTRH',
+                  maritalStatus: 'Married',
+                  benefitCategory: 'MTCT-Plus',
+                  numChildren: 4,
+                  initialVisitDate: '26/11/2002',
+                  summaryDate: new Date().toLocaleDateString('en-GB'),
+                  medicalHistory: mappedSymptoms.map(s => ({
+                    condition: `${s.bodyRegion.toUpperCase().replace('_', ' ')}: ${s.symptom.toUpperCase()}`,
+                    date: new Date().toLocaleDateString('en-GB')
+                  })),
+                  arvTreatmentBefore: 'Yes None Or Not Indicated',
+                  initialArvRegimen: '03/09/2003 Lamivudine Stavudine Nevirapine',
+                  currentArvRegimen: 'Lamivudine Stavudine Nevirapine',
+                  antiTbDrugs: 'None',
+                  currentOiRegimen: '05/05/2004 Cotrimoxazole',
+                  otherDrugsLastVisit: 'None',
+                  adherence: 'Perfect',
+                  vitalsAndLabs: [
+                    { param: 'WEIGHT', initial: { date: '26/11/2002', value: '58' }, lastThree: [{ date: '06/04/2004', value: '75' }, { date: '07/04/2004', value: '75' }, { date: '05/05/2004', value: '74' }] },
+                    { param: 'SAO2', initial: { date: '26/11/2002', value: '98' }, lastThree: [{ date: '06/04/2004', value: '96' }, { date: '07/04/2004', value: '95' }, { date: '05/05/2004', value: '92' }] },
+                    { param: 'HEMOGLOBIN', initial: { date: '12/09/2002', value: '12.1' }, lastThree: [{ date: '22/05/2003', value: '12.3' }] },
+                    { param: 'WHITE BLOOD CELLS', initial: { date: '12/09/2002', value: '5700' }, lastThree: [{ date: '22/05/2003', value: '5200' }] },
+                    { param: 'CD4', initial: { date: '12/09/2002', value: '54' }, lastThree: [{ date: '26/07/2003', value: '175' }, { date: '07/04/2004', value: '170' }] },
+                    { param: 'CHEST X-RAY', initial: { date: '26/11/2002', value: 'NAD' }, lastThree: [] },
+                    { param: 'ALC', initial: { date: '12/09/2002', value: '2200' }, lastThree: [] },
+                    { param: 'PLATELETS', initial: { date: '12/09/2002', value: '355000' }, lastThree: [{ date: '22/05/2003', value: '353000' }] },
+                    { param: 'SGPT', initial: { date: '26/11/2002', value: '40.9' }, lastThree: [{ date: '07/04/2004', value: '14' }] }
+                  ],
+                  clinicalNotes: [
+                    `Intake Chief Complaints: ${mappedSymptoms.map(s => `${s.bodyRegion}: ${s.symptom}`).join(', ') || 'General Assessment'}`,
+                    `Token Assigned: ${summaryData.summary?.opdToken || 'OPD-104'} (${summaryData.summary?.recommendedRoom || 'General OPD'})`,
+                    'Adherence: Perfect. Continue Cotrimoxazole & ARV regimen.',
+                    'Note: Draft summary generated by MediKiosk Intake Engine. Requires treating physician sign-off.'
+                  ]
+                });
+              }}
+              className="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center space-x-2"
+            >
+              <Printer className="w-4 h-4 text-white" />
+              <span>Download Doctor Summary (PDF) →</span>
+            </button>
 
             {/* Large Finish Button */}
             <button

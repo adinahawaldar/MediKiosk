@@ -3,6 +3,8 @@ import { translateTextWithSarvam } from '../services/sarvamTranslate.js';
 import { Consultation } from '../models/Consultation.js';
 import { Doctor } from '../models/Doctor.js';
 import { Patient } from '../models/Patient.js';
+import { translateTextWithSarvam } from '../services/sarvamTranslate';
+import { generatePdfFromHtml } from '../services/puppeteerPdf';
 
 export interface SymptomItem {
   bodyRegion: string;
@@ -398,7 +400,7 @@ router.post('/assessment/complete', (req: Request, res: Response) => {
     }
 
     const redFlags: string[] = [];
-    let triageStatus: 'RED' | 'AMBER' | 'GREEN' = 'GREEN';
+    let triageStatus: string = 'GREEN';
 
     session.symptoms.forEach(item => {
       const isChest = item.bodyRegion.includes('chest') || item.bodyRegion.includes('breathing');
@@ -432,7 +434,7 @@ router.post('/assessment/complete', (req: Request, res: Response) => {
       patientProfile: session.patientProfile,
     };
 
-    session.triage = triageStatus;
+    session.triage = triageStatus as 'RED' | 'AMBER' | 'GREEN';
     session.redFlags = redFlags;
     session.summary = summaryPayload;
 
@@ -685,6 +687,221 @@ router.delete('/session/:id', (req: Request, res: Response) => {
     },
     message: existed ? 'Ephemeral kiosk session deleted' : 'Session did not exist',
   });
+});
+
+/**
+ * Natural Language Symptom Analyzer
+ * POST /api/v1/medikiosk/analyze-symptom
+ */
+router.post('/analyze-symptom', (req: Request, res: Response) => {
+  try {
+    const { query, language = 'en' } = req.body;
+    const text = (query || '').toLowerCase().trim();
+
+    if (!text) {
+      return res.status(400).json({ success: false, error: 'Query text is required' });
+    }
+
+    // Extract clinical intent & duration from natural language
+    let extractedSymptom = 'Unspecified Symptom';
+    let targetRegion = 'stomach';
+    let targetRegionName = 'Stomach';
+    let duration = 'Today';
+    let onset = 'gradual';
+    let aiQuestion = '';
+    let options: string[] = [];
+
+    // Duration extraction (e.g. "since yesterday", "since tomorrow", "for 2 days", "since morning")
+    if (text.includes('yesterday') || text.includes('tomorrow') || text.includes('1 day') || text.includes('24 hour')) {
+      duration = 'Since Yesterday (~24 Hours)';
+    } else if (text.includes('days') || text.includes('week') || text.includes('month')) {
+      duration = 'Multiple Days';
+    } else if (text.includes('morning') || text.includes('today')) {
+      duration = 'Since Morning (Today)';
+    }
+
+    if (text.includes('vomit') || text.includes('vometting') || text.includes('nausea') || text.includes('puke') || text.includes('throw up')) {
+      extractedSymptom = 'Vomiting & Nausea';
+      targetRegion = 'stomach';
+      targetRegionName = 'Stomach';
+      aiQuestion = `You reported: "${query}". How frequently are you vomiting, and are you able to keep fluids down?`;
+      options = ['Vomiting after meals', 'Frequent Vomiting (>3 times)', 'Nausea / Motion Sickness', 'Acidity & Reflux'];
+    } else if (text.includes('head') || text.includes('migraine') || text.includes('dizzy') || text.includes('giddiness')) {
+      extractedSymptom = 'Headache / Dizziness';
+      targetRegion = 'head';
+      targetRegionName = 'Head';
+      aiQuestion = `You reported: "${query}". Is the headache throbbing, or accompanied by dizziness or high fever?`;
+      options = ['Throbbing Headache', 'Dizziness & Lightheadedness', 'Migraine Attack', 'Head Pressure'];
+    } else if (text.includes('chest') || text.includes('breath') || text.includes('cough') || text.includes('phlegm')) {
+      extractedSymptom = 'Chest Pain / Respiratory Trouble';
+      targetRegion = 'chest';
+      targetRegionName = 'Chest';
+      aiQuestion = `You reported: "${query}". Does the chest pain radiate to your left arm or jaw, or cause breathing difficulty?`;
+      options = ['Sharp Chest Pain', 'Shortness of Breath', 'Dry Cough / Wheezing', 'Chest Tightness'];
+    } else if (text.includes('kidney') || text.includes('urine') || text.includes('flank') || text.includes('urinary') || text.includes('lower back')) {
+      extractedSymptom = 'Kidney / Flank Discomfort';
+      targetRegion = 'kidney';
+      targetRegionName = 'Kidney & Lower Back';
+      aiQuestion = `You reported: "${query}". What specific kidney or urinary problem are you experiencing?`;
+      options = ['Lower Back / Flank Pain', 'Burning Urination', 'Frequent Urination', 'Kidney Stones / Cramps'];
+    } else if (text.includes('fever') || text.includes('temperature') || text.includes('chills')) {
+      extractedSymptom = 'Fever & Chills';
+      targetRegion = 'head';
+      targetRegionName = 'Head';
+      aiQuestion = `You reported: "${query}". Is the fever high-grade with body ache or chills?`;
+      options = ['High Fever (>101°F)', 'Mild Fever with Body Ache', 'Fever with Chills', 'Intermittent Fever'];
+    } else {
+      extractedSymptom = query;
+      aiQuestion = `You reported: "${query}". Please select the exact symptom you are experiencing:`;
+      options = [query, 'Pain / Discomfort', 'Stiffness', 'Swelling / Burning'];
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        rawQuery: query,
+        extractedSymptom,
+        targetRegion,
+        targetRegionName,
+        duration,
+        onset,
+        aiQuestion,
+        options,
+      },
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Adaptive Multi-Turn AI Intake Engine (SOCRATES Framework: 4-5 Deep Questions)
+ * POST /api/v1/medikiosk/converse-turn
+ */
+router.post('/converse-turn', async (req: Request, res: Response) => {
+  try {
+    const { query, regionId, regionName, turnCount = 1 } = req.body;
+    const text = (query || '').toLowerCase().trim();
+
+    let redFlag = false;
+    let triage: 'RED' | 'AMBER' | 'GREEN' = 'GREEN';
+    if (text.includes('chest pain') || text.includes('radiat') || text.includes('breathless') || text.includes('blood')) {
+      redFlag = true;
+      triage = 'RED';
+    }
+
+    let aiQuestion = '';
+    let options: string[] = [];
+    let isComplete = turnCount >= 4 || triage === 'RED';
+
+    const isVomiting = text.includes('vomit') || text.includes('vometting') || text.includes('nausea') || text.includes('stomach') || regionId === 'stomach';
+    const isChest = text.includes('chest') || text.includes('cough') || text.includes('breath') || regionId === 'chest';
+    const isHead = text.includes('head') || text.includes('fever') || text.includes('dizzy') || regionId === 'head';
+    const isKidney = text.includes('kidney') || text.includes('urine') || text.includes('flank') || text.includes('urinary') || regionId === 'kidney';
+
+    if (turnCount === 1) {
+      if (isKidney) {
+        aiQuestion = `What specific kidney or urinary problem are you experiencing?`;
+        options = ['Lower Back / Flank Pain', 'Burning Urination', 'Frequent Urination', 'Kidney Stones / Cramps'];
+      } else if (isVomiting) {
+        aiQuestion = `How many times have you vomited or felt nauseous today?`;
+        options = ['1 to 2 times', '3 to 5 times', 'More than 5 times', 'Constant nausea only'];
+      } else if (isChest) {
+        aiQuestion = `When did the chest or breathing discomfort start, and what does it feel like?`;
+        options = ['Started today', 'Sharp stabbing pain', 'Heavy pressure on chest', 'Shortness of breath with cough'];
+      } else if (isHead) {
+        aiQuestion = `How long have you had this headache or fever, and how bad is it?`;
+        options = ['Started today', 'Last 2-3 days', 'Severe throbbing pain', 'High fever with body ache'];
+      } else {
+        aiQuestion = `What specific problem or pain are you experiencing in your ${regionName}?`;
+        options = ['Sharp Pain', 'Dull Ache', 'Burning / Swelling', 'Stiffness / Strain'];
+      }
+    } else if (turnCount === 2) {
+      if (isKidney) {
+        aiQuestion = `How long have you had this kidney or flank discomfort, and does the pain come in sharp waves?`;
+        options = ['Started today', 'Sharp spasmodic pain', 'Dull ache in lower back', 'Fever with chills'];
+      } else if (isVomiting) {
+        aiQuestion = `Is the vomiting accompanied by abdominal pain, fever, or acidity?`;
+        options = ['Severe stomach pain', 'Mild fever & chills', 'Heavy acid reflux / burning', 'No other symptoms'];
+      } else if (isChest) {
+        aiQuestion = `Does the chest pain spread to your left arm, shoulder, or jaw?`;
+        options = ['Yes, spreads to left arm', 'Spreads to shoulder/back', 'Stays in center of chest', 'No radiation'];
+      } else if (isHead) {
+        aiQuestion = `Do you have any dizziness, nausea, light sensitivity, or neck stiffness?`;
+        options = ['Dizziness & lightheadedness', 'Nausea & vomiting', 'Neck stiffness', 'None of these'];
+      } else {
+        aiQuestion = `When did this discomfort start, and is it constant or coming in waves?`;
+        options = ['Started today', 'Constant continuous pain', 'Comes and goes in waves', 'Worse with movement'];
+      }
+    } else if (turnCount === 3) {
+      if (isKidney) {
+        aiQuestion = `Do you have any burning during urination, fever, or change in urine color?`;
+        options = ['Burning during urination', 'Dark or cloudy urine', 'High fever & chills', 'None of these'];
+      } else if (isVomiting) {
+        aiQuestion = `Are you able to drink water or keep liquids down right now?`;
+        options = ['Yes, can drink water', 'Unable to keep liquids down', 'Feeling very weak', 'Slightly dehydrated'];
+      } else if (isChest) {
+        aiQuestion = `Does the breathing or pain get worse when lying down or taking a deep breath?`;
+        options = ['Worse when lying flat', 'Worse on deep breath', 'Worse with exertion', 'No change with position'];
+      } else if (isHead) {
+        aiQuestion = `Have you taken any medication for this (like Paracetamol), and did it help?`;
+        options = ['Took Paracetamol - helped', 'Took medicine - no relief', 'Have not taken medication', 'Not sure'];
+      } else {
+        aiQuestion = `Are you experiencing any other symptoms along with this in your body?`;
+        options = ['Fever / Chills', 'Fatigue / Weakness', 'Nausea / Loss of appetite', 'No other symptoms'];
+      }
+    } else if (turnCount === 4) {
+      if (isKidney) {
+        aiQuestion = `Have you had any previous history of Kidney Stones, Urinary Infection, or High BP?`;
+        options = ['History of Kidney Stones', 'Recurrent Urinary Infection', 'High Blood Pressure', 'No past history'];
+      } else {
+        aiQuestion = `Do you have any past medical history (such as Diabetes, BP, or Allergies) related to this?`;
+        options = ['High Blood Pressure', 'Diabetes', 'Acidity / Ulcer history', 'No past medical history'];
+      }
+      isComplete = true;
+    } else {
+      aiQuestion = `Thank you. Full clinical history recorded for the doctor.`;
+      options = ['Assessment Complete'];
+      isComplete = true;
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        turnCount,
+        aiQuestion,
+        options,
+        isComplete,
+        triage,
+        redFlag,
+      },
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Puppeteer PDF Generation Endpoint
+ * POST /api/v1/medikiosk/generate-pdf
+ */
+router.post('/generate-pdf', async (req: Request, res: Response) => {
+  try {
+    const { htmlContent } = req.body;
+    if (!htmlContent) {
+      return res.status(400).json({ success: false, error: 'htmlContent is required' });
+    }
+
+    const pdfBuffer = await generatePdfFromHtml(htmlContent);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="Doctor_Clinical_Summary.pdf"');
+    res.setHeader('Content-Length', pdfBuffer.length);
+    return res.send(pdfBuffer);
+  } catch (err: any) {
+    console.error('Puppeteer PDF Generation Error:', err);
+    return res.status(500).json({ success: false, error: 'Failed to generate PDF via Puppeteer', details: err.message });
+  }
 });
 
 export default router;
