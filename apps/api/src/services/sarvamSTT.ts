@@ -42,6 +42,7 @@ export async function transcribeAudio(
           'Authorization': `Bearer ${groqApiKey}`,
         },
         body: formData as any,
+        signal: AbortSignal.timeout(15000),
       });
 
       if (!response.ok) {

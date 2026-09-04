@@ -79,12 +79,21 @@ router.post('/ocr', async (req: Request, res: Response) => {
     if (!aiResponse.ok) throw new Error(`OCR service returned ${aiResponse.status}`);
     const aiBody: any = await aiResponse.json();
     const extracted = aiBody.data || aiBody;
+    const originalExtraction = {
+      extractedDiagnosis: extracted.extractedDiagnosis || '',
+      extractedMedications: extracted.extractedMedications || [],
+      extractedLabValues: extracted.extractedLabValues || [],
+      extractedVitals: extracted.extractedVitals || {},
+      abnormalLabFlags: extracted.abnormalLabFlags || [],
+      summary: extracted.summary || 'OCR extraction completed. Physician review required.',
+    };
     const document = await MedicalDocument.create({
       patientId: patient._id, fileName: payload.fileName, documentType: payload.documentType,
-      extractedDiagnosis: extracted.extractedDiagnosis || '', extractedMedications: extracted.extractedMedications || [],
-      extractedLabValues: extracted.extractedLabValues || [], abnormalLabFlags: extracted.abnormalLabFlags || [],
-      summary: extracted.summary || 'OCR extraction completed. Physician review required.',
-      pageCount: extracted.pageCount || 1, status: 'draft',
+      extractedDiagnosis: originalExtraction.extractedDiagnosis, extractedMedications: originalExtraction.extractedMedications,
+      extractedLabValues: originalExtraction.extractedLabValues, abnormalLabFlags: originalExtraction.abnormalLabFlags,
+      extractedVitals: originalExtraction.extractedVitals,
+      summary: originalExtraction.summary,
+      pageCount: extracted.pageCount || 1, status: 'draft', originalExtraction,
     });
     return res.status(201).json({ success: true, data: { document, patientId: patient._id }, message: 'Document digitized as a draft.' });
   } catch (error: any) {
@@ -112,15 +121,50 @@ export interface KioskSession {
   symptoms: SymptomItem[];
   vitals?: {
     temperature?: number;
-    bp?: string;
   };
   summary?: any;
   redFlags?: string[];
   triage?: 'RED' | 'AMBER' | 'GREEN';
+  triageScore?: number;
+  triageReason?: string;
 }
 
 // In-memory ephemeral session store (DPDP Act 2023 compliant)
 const activeSessions = new Map<string, KioskSession>();
+
+export const getTriageAssessment = (input: {
+  symptoms?: SymptomItem[];
+  chiefComplaint?: string;
+  socrates?: Record<string, string>;
+  redFlags?: string[];
+  vitals?: { temperature?: number };
+}) => {
+  const symptoms = input.symptoms || [];
+  const text = `${input.chiefComplaint || ''} ${JSON.stringify(input.socrates || {})} ${JSON.stringify(symptoms)}`.toLowerCase();
+  const redFlags = input.redFlags || [];
+  let score = Math.min(100, redFlags.length * 45);
+  const reasons = [...redFlags];
+  const severeCount = symptoms.filter((item) => String(item.severity).includes('severe') || Number(item.severity) >= 7).length;
+  score += Math.min(30, severeCount * 15);
+  if (severeCount > 0) reasons.push(`${severeCount} severe symptom(s) reported`);
+  if (/(chest|breathless|shortness of breath|unconscious|seizure|stroke|blood)/.test(text)) {
+    score += 30;
+    reasons.push('Potential emergency symptom identified');
+  }
+  if (/(worse|unable to keep|fainted|sudden)/.test(text)) {
+    score += 10;
+    reasons.push('High-risk symptom characteristic reported');
+  }
+  const temperature = Number(input.vitals?.temperature);
+  if (Number.isFinite(temperature)) {
+    const highTemperature = temperature > 45 ? temperature >= 103.1 : temperature >= 39;
+    const lowTemperature = temperature > 45 ? temperature <= 95 : temperature <= 35;
+    if (highTemperature) { score += 15; reasons.push('High temperature recorded'); }
+    else if (lowTemperature) { score += 20; reasons.push('Low temperature recorded'); }
+  }
+  const triage: 'RED' | 'AMBER' | 'GREEN' = score >= 60 ? 'RED' : score >= 25 ? 'AMBER' : 'GREEN';
+  return { score: Math.min(100, score), triage, reason: reasons.length ? reasons.join('; ') : 'No urgent indicators detected' };
+};
 
 /**
  * Live Sarvam AI Translation Endpoint
@@ -353,7 +397,7 @@ router.post('/abha/verify-otp', (req: Request, res: Response) => {
  */
 router.post('/session', (req: Request, res: Response) => {
   try {
-    const { patientProfile, language = 'en', mode = 'allopathy' } = req.body;
+    const { patientProfile, language = 'en', mode = 'allopathy', vitals = {} } = req.body;
     const sessionId = `MK-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
     const newSession: KioskSession = {
@@ -365,6 +409,7 @@ router.post('/session', (req: Request, res: Response) => {
       consentRecorded: true,
       createdAt: Date.now(),
       symptoms: [],
+      vitals,
     };
 
     activeSessions.set(sessionId, newSession);
@@ -493,6 +538,7 @@ router.post('/assessment/complete', (req: Request, res: Response) => {
     const chiefComplaintStr = session.symptoms
       .map(s => `${s.bodyRegion.toUpperCase()}: ${s.symptom} (Severity: ${s.severity})`)
       .join('; ') || 'General Consultation';
+    const triageAssessment = getTriageAssessment({ symptoms: session.symptoms, chiefComplaint: chiefComplaintStr, redFlags, vitals: session.vitals });
 
     const isHiOrMr = session.language === 'hi' || session.language === 'mr';
 
@@ -501,14 +547,16 @@ router.post('/assessment/complete', (req: Request, res: Response) => {
       requiresDoctorSignoff: true,
       chiefComplaint: chiefComplaintStr,
       historyOfPresentIllness: `Patient mapped ${session.symptoms.length} body region(s).`,
-      opdToken: triageStatus === 'RED' ? 'EMG-01' : `OPD-${Math.floor(100 + Math.random() * 900)}`,
-      recommendedRoom: triageStatus === 'RED'
+      opdToken: triageAssessment.triage === 'RED' ? 'EMG-01' : `OPD-${Math.floor(100 + Math.random() * 900)}`,
+      recommendedRoom: triageAssessment.triage === 'RED'
         ? (isHiOrMr ? 'इमरजेंसी रूम 1' : 'Emergency Room 1')
         : (isHiOrMr ? 'कमरा नंबर 104 (सामान्य चिकित्सा OPD)' : 'Room 104 (General Medicine OPD)'),
       patientProfile: session.patientProfile,
     };
 
-    session.triage = triageStatus as 'RED' | 'AMBER' | 'GREEN';
+    session.triage = triageAssessment.triage;
+    session.triageScore = triageAssessment.score;
+    session.triageReason = triageAssessment.reason;
     session.redFlags = redFlags;
     session.summary = summaryPayload;
 
@@ -517,6 +565,8 @@ router.post('/assessment/complete', (req: Request, res: Response) => {
       data: {
         sessionId: session.sessionId,
         triage: session.triage,
+        triageScore: session.triageScore,
+        triageReason: session.triageReason,
         redFlags: session.redFlags,
         summary: session.summary,
       },
@@ -638,6 +688,8 @@ router.post('/submit-to-doctor', async (req: Request, res: Response) => {
       patientProfile,
       chiefComplaint,
       socrates = {},
+      ayushHistory = {},
+      historyMode = 'allopathy',
       symptoms = [],
       triage = 'GREEN',
       redFlags = [],
@@ -666,9 +718,16 @@ router.post('/submit-to-doctor', async (req: Request, res: Response) => {
       await patient.save();
     }
 
+    const symptomList = symptoms.length > 0
+      ? symptoms.map((s: any) => typeof s === 'string'
+        ? s
+        : `${s.bodyRegion || ''}: ${s.symptom || ''} (${s.severity || 'moderate'})`.trim())
+      : [chiefComplaint || 'Consultation Intake'];
+    const triageAssessment = getTriageAssessment({ symptoms: symptoms as SymptomItem[], chiefComplaint, socrates, redFlags, vitals });
+
     // 2. Assign Doctor based on Triage Specialty
     let assignedDoctor = null;
-    const isEmergency = triage === 'RED';
+    const isEmergency = triageAssessment.triage === 'RED';
     if (isEmergency) {
       assignedDoctor = await Doctor.findOne({ specialization: 'Cardiology', status: 'active' }).exec();
     }
@@ -692,20 +751,15 @@ router.post('/submit-to-doctor', async (req: Request, res: Response) => {
     }
 
     // 3. Synthesize Structured SOAP Notes from SOCRATES
-    const symptomList = symptoms.length > 0
-      ? symptoms.map((s: any) => typeof s === 'string'
-        ? s
-        : `${s.bodyRegion || ''}: ${s.symptom || ''} (${s.severity || 'moderate'})`.trim())
-      : [chiefComplaint || 'Consultation Intake'];
-
+    const vitalText = vitals?.temperature !== undefined ? `Temperature ${vitals.temperature}°F` : 'Temperature not recorded';
     const soapNotes = {
       subjective: `CHIEF COMPLAINT: ${chiefComplaint || 'General OPD'}\nSOCRATES HISTORY:\n- Site: ${socrates.site || 'Refer to body map'}\n- Onset: ${socrates.onset || 'Recent'}\n- Character: ${socrates.character || 'Ache/Pain'}\n- Radiation: ${socrates.radiation || 'None reported'}\n- Timing: ${socrates.timing || socrates.duration || 'Today'}\n- Severity: ${socrates.severity || 'Moderate'}\nAssociated Symptoms: ${symptomList.join(', ')}`,
-      objective: `Kiosk Vitals & Data: Temp ${vitals?.temperature || '98.6'}°F, BP ${vitals?.bp || '120/80'}. ABHA: ${patientProfile?.abhaNumber || 'Verified'}. Ephemeral intake digitized at kiosk terminal.`,
+      objective: `Kiosk Vitals & Data: ${vitalText}. Historical BP/sugar values, if available, are sourced from scanned records only. ABHA: ${patientProfile?.abhaNumber || 'Verified'}. Ephemeral intake digitized at kiosk terminal.`,
       assessment: `Triage Severity: ${triage}. Priority: ${isEmergency ? 'EMERGENCY' : triage === 'AMBER' ? 'URGENT' : 'ROUTINE'}.\nRed Flag Warnings: ${redFlags.length > 0 ? redFlags.join('; ') : 'None detected'}.\nClinical Impression: Draft pre-consultation assessment pending physical examination.`,
       plan: `Recommended Room: ${isEmergency ? 'Emergency Room 1 (ICU/Crash Cart)' : 'Room 104 (General Medicine OPD)'}.\nDoctor Assigned: Dr. ${assignedDoctor.firstName} ${assignedDoctor.lastName} (${assignedDoctor.specialization}).\nPhysician Review & Prescription Sign-off required.`,
     };
 
-    const priority = isEmergency ? 'emergency' : triage === 'AMBER' ? 'urgent' : 'routine';
+    const finalTriage = triageAssessment.triage === 'RED' ? 'emergency' : triageAssessment.triage === 'AMBER' ? 'urgent' : 'routine';
     const opdToken = isEmergency ? 'EMG-01' : `OPD-${Math.floor(100 + Math.random() * 900)}`;
 
     // 4. Save Official Consultation Document in MongoDB
@@ -714,12 +768,16 @@ router.post('/submit-to-doctor', async (req: Request, res: Response) => {
       doctorId: assignedDoctor._id,
       chiefComplaint: chiefComplaint || symptomList[0] || 'General OPD',
       socrates,
+      historyMode,
+      ayushHistory,
+      vitals,
       symptoms: symptomList,
       diagnosis: `Draft Intake: ${chiefComplaint || 'General OPD'}`,
       treatmentPlan: isEmergency ? 'Immediate Emergency Clinical Evaluation & Vitals Stabilization' : 'Standard Outpatient Consultation',
       status: 'open',
-      priority,
-      triageNotes: redFlags.length > 0 ? redFlags.join('; ') : 'Kiosk intake completed with no critical flags',
+      priority: finalTriage,
+      triageScore: triageAssessment.score,
+      triageNotes: triageAssessment.reason,
       triageAIEvaluated: true,
       soapNotes,
     });
@@ -734,6 +792,8 @@ router.post('/submit-to-doctor', async (req: Request, res: Response) => {
         doctorName: `Dr. ${assignedDoctor.firstName} ${assignedDoctor.lastName}`,
         department: assignedDoctor.department,
         priority: consultation.priority,
+        triageScore: consultation.triageScore,
+        triageReason: triageAssessment.reason,
         opdToken,
         roomNumber: isEmergency ? 'Emergency Room 1' : 'Room 104 (OPD)',
         soapNotes: consultation.soapNotes,

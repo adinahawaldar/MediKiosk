@@ -39,6 +39,8 @@ interface ConsultationItem {
   status: 'open' | 'in_progress' | 'completed';
   priority: 'emergency' | 'urgent' | 'routine';
   triageNotes?: string;
+  triageScore?: number;
+  triageOverrideReason?: string;
   triageAIEvaluated?: boolean;
   soapNotes?: SoapNotes;
   createdAt: string;
@@ -58,6 +60,9 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
   const [isSigningOff, setIsSigningOff] = useState<boolean>(false);
   const [summaryPayload, setSummaryPayload] = useState<DoctorSummaryPayload | null>(null);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+  const [triageOverride, setTriageOverride] = useState<'emergency' | 'urgent' | 'routine' | ''>('');
+  const [triageOverrideReason, setTriageOverrideReason] = useState('');
+  const [isSavingTriage, setIsSavingTriage] = useState(false);
 
   const fetchQueue = async () => {
     try {
@@ -88,7 +93,26 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
   const handleSelectPatient = (item: ConsultationItem) => {
     setSelectedConsultation(item);
     setDoctorNotes(item.treatmentPlan || '');
+    setTriageOverride(item.priority || 'routine');
+    setTriageOverrideReason('');
     void openSummary(item);
+  };
+
+  const handleTriageOverride = async () => {
+    if (!selectedConsultation || !triageOverride || !triageOverrideReason.trim()) return;
+    setIsSavingTriage(true);
+    try {
+      const res = await fetch(`http://localhost:5000/api/v1/doctor/consultations/${selectedConsultation._id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ priority: triageOverride, triageOverrideReason: triageOverrideReason.trim(), triageOverrideBy: 'Doctor' }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Triage override failed');
+      await fetchQueue();
+      setSelectedConsultation(data.data);
+      setTriageOverrideReason('');
+    } catch (err: any) { setError(err.message || 'Triage override failed'); }
+    finally { setIsSavingTriage(false); }
   };
 
   const openSummary = async (item: ConsultationItem) => {
@@ -352,6 +376,11 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
                   <p className="text-xs font-semibold">{selectedConsultation.triageNotes}</p>
                 </div>
               )}
+
+              <div className="p-4 rounded-xl border border-indigo-200 bg-indigo-50 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-xs font-black uppercase tracking-wider text-indigo-900">Triage score: {selectedConsultation.triageScore ?? 0}/100</span><span className="text-[10px] text-indigo-700">Doctor override is recorded</span></div>
+                <div className="flex flex-col sm:flex-row gap-2"><select value={triageOverride} onChange={(e) => setTriageOverride(e.target.value as any)} className="rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-bold"><option value="emergency">Emergency / RED</option><option value="urgent">Urgent / AMBER</option><option value="routine">Routine / GREEN</option></select><input value={triageOverrideReason} onChange={(e) => setTriageOverrideReason(e.target.value)} placeholder="Reason for changing triage" className="flex-1 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs" /><button onClick={handleTriageOverride} disabled={isSavingTriage || !triageOverrideReason.trim()} className="rounded-lg bg-indigo-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">{isSavingTriage ? 'Saving...' : 'Save triage'}</button></div>
+              </div>
 
               {/* Structured SOAP Clinical Report */}
               <div className="space-y-4">

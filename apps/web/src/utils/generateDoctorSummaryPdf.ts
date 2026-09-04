@@ -34,6 +34,8 @@ export interface PatientSummaryData {
   allergies?: string[];
   prescriptions?: Array<{ medications: string[]; instructions: string; status: string; version?: number }>;
   ocrDocuments?: Array<{ fileName: string; documentType: string; summary: string; abnormalLabFlags?: string[] }>;
+  longitudinalSummary?: string;
+  timeline?: Array<{ date: string; type: string; title: string; details?: string }>;
 }
 
 export const DEFAULT_STATIC_SUMMARY_DATA: PatientSummaryData = {

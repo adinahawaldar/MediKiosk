@@ -1,9 +1,8 @@
-import puppeteer from 'puppeteer';
-
 /**
  * Generates a PDF Buffer from raw HTML string using Puppeteer
  */
 export async function generatePdfFromHtml(htmlContent: string): Promise<Buffer> {
+  const { default: puppeteer } = await import('puppeteer');
   let browser = null;
   try {
     browser = await puppeteer.launch({

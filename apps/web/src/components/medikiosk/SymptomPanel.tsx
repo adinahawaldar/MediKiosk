@@ -8,6 +8,7 @@ interface SymptomPanelProps {
   initialSymptom?: string;
   mappedSymptoms?: MappedSymptom[];
   existingSymptom?: MappedSymptom;
+  mode?: 'allopathy' | 'ayush';
   onSaveSymptom: (symptomData: MappedSymptom) => void;
   onSaveMultiSymptoms?: (symptomsData: MappedSymptom[]) => void;
   onClose: () => void;
@@ -20,11 +21,18 @@ const SEVERITY_LEVELS = [
   { id: 'very_severe', label: 'Emergency', desc: 'Very Severe' },
 ];
 
+interface SocratesQuestion {
+  id: string;
+  question: string;
+  options: string[];
+}
+
 export const SymptomPanel: React.FC<SymptomPanelProps> = ({
   regionId,
   regionName,
   initialSymptom,
   existingSymptom,
+  mode = 'allopathy',
   onSaveSymptom,
   onClose,
 }) => {
@@ -35,6 +43,9 @@ export const SymptomPanel: React.FC<SymptomPanelProps> = ({
   const [selectedSeverity, setSelectedSeverity] = useState<string>(existingSymptom?.severity || 'moderate');
   const [typedDetail, setTypedDetail] = useState<string>('');
   const [accumulatedNotes, setAccumulatedNotes] = useState<string[]>(initialSymptom ? [initialSymptom] : []);
+  const [socratesQuestions, setSocratesQuestions] = useState<SocratesQuestion[]>([]);
+  const [socratesAnswers, setSocratesAnswers] = useState<Record<string, string>>({});
+  const [socratesIndex, setSocratesIndex] = useState<number>(0);
 
   // Primary Options by Body Region for Turn 1
   const getPrimaryOptions = (rId: string) => {
@@ -67,6 +78,17 @@ export const SymptomPanel: React.FC<SymptomPanelProps> = ({
 
   // Helper to compute Turn Questions & Options dynamically for Turn 2, 3, 4, 5
   const computeTurnData = (turn: number, selectedDisease: string) => {
+    if (mode === 'ayush') {
+      const ayushQuestions = [
+        { question: 'Which body constitution best describes you (Prakriti)?', options: ['Vata', 'Pitta', 'Kapha', 'Not sure'] },
+        { question: 'How is your digestion or Agni?', options: ['Regular (Sama)', 'Irregular (Vishama)', 'Strong (Tikshna)', 'Low (Manda)'] },
+        { question: 'How would you describe your bowel pattern (Koshtha)?', options: ['Hard/constipated', 'Loose/soft', 'Regular', 'Irregular'] },
+        { question: 'Tell us about your diet and daily routine (Ahara-Vihara).', options: ['Regular and balanced', 'Mostly spicy/oily', 'Irregular meals', 'Needs improvement'] },
+        { question: 'How are your sleep and stress levels?', options: ['Good sleep / low stress', 'Poor sleep', 'High stress', 'Both poor sleep and high stress'] },
+      ];
+      const selected = ayushQuestions[Math.min(Math.max(turn - 1, 0), ayushQuestions.length - 1)];
+      return { question: selected.question, options: selected.options };
+    }
     const text = (selectedDisease || primaryProblem || initialSymptom || '').toLowerCase();
     const isVomiting = text.includes('vomit') || text.includes('vometting') || text.includes('nausea') || text.includes('stomach') || regionId === 'stomach';
     const isChest = text.includes('chest') || text.includes('breath') || text.includes('cough') || text.includes('palpit') || regionId === 'chest';
@@ -185,6 +207,67 @@ export const SymptomPanel: React.FC<SymptomPanelProps> = ({
     const activeProblem = turnCount === 1 ? chosenAnswer : primaryProblem;
     if (turnCount === 1) {
       setPrimaryProblem(chosenAnswer);
+
+      // Use the same SOCRATES question generator as the voice intake.
+      try {
+        const response = await fetch('/api/v1/medikiosk/questions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chiefComplaint: `${regionName}: ${chosenAnswer}`,
+            language: 'en',
+            mode,
+          }),
+        });
+        const json = await response.json();
+        const questions = json.data?.adaptiveQuestions;
+
+        if (json.success && Array.isArray(questions) && questions.length > 0) {
+          setSocratesQuestions(questions);
+          setSocratesAnswers({});
+          setSocratesIndex(0);
+          setTurnCount(2);
+          setTypedDetail('');
+          setCurrentQuestion(questions[0].question);
+          setCurrentOptions(questions[0].options || []);
+          return;
+        }
+      } catch (err) {
+        console.warn('SOCRATES question service unavailable, using local fallback:', err);
+      }
+    }
+
+    if (socratesQuestions.length > 0 && turnCount > 1) {
+      const currentSocratesQuestion = socratesQuestions[socratesIndex];
+      const updatedAnswers = {
+        ...socratesAnswers,
+        [currentSocratesQuestion.id]: chosenAnswer,
+      };
+      const nextIndex = socratesIndex + 1;
+      setSocratesAnswers(updatedAnswers);
+
+      if (nextIndex >= socratesQuestions.length) {
+        onSaveSymptom({
+          bodyRegion: regionId,
+          symptom: newNotes.join('; '),
+          severity: selectedSeverity,
+          duration: updatedAnswers.timing || updatedAnswers.onset || 'Today',
+          onset: updatedAnswers.onset,
+          additionalDetails: {
+            description: newNotes.join(' | '),
+            socrates: mode === 'allopathy' ? updatedAnswers : {},
+            ayush: mode === 'ayush' ? updatedAnswers : {},
+          },
+        });
+        return;
+      }
+
+      setSocratesIndex(nextIndex);
+      setTurnCount(turnCount + 1);
+      setTypedDetail('');
+      setCurrentQuestion(socratesQuestions[nextIndex].question);
+      setCurrentOptions(socratesQuestions[nextIndex].options || []);
+      return;
     }
 
     const nextTurn = turnCount + 1;
@@ -246,6 +329,8 @@ export const SymptomPanel: React.FC<SymptomPanelProps> = ({
       duration: 'Today',
       additionalDetails: {
         description: accumulatedNotes.join(' | '),
+          socrates: mode === 'allopathy' ? socratesAnswers : {},
+          ayush: mode === 'ayush' ? socratesAnswers : {},
       },
     });
   };
@@ -362,7 +447,13 @@ export const SymptomPanel: React.FC<SymptomPanelProps> = ({
             </button>
           ) : (
             <button
-              onClick={handleFinalSave}
+              onClick={() => {
+                if (socratesQuestions.length > 0) {
+                  advanceTurn(typedDetail.trim() || 'No additional details');
+                } else {
+                  handleFinalSave();
+                }
+              }}
               className="w-full py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center space-x-2"
             >
               <Check className="w-4 h-4 text-white" />
