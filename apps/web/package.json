@@ -1,11 +1,8 @@
 {
-  "name": "apps/web",
+  "name": "hospitalos-web",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "workspaces": [
-    "."
-  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
