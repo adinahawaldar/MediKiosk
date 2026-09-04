@@ -1,4 +1,8 @@
 import { Router, Request, Response } from 'express';
+import { translateTextWithSarvam } from '../services/sarvamTranslate.js';
+import { Consultation } from '../models/Consultation.js';
+import { Doctor } from '../models/Doctor.js';
+import { Patient } from '../models/Patient.js';
 import { translateTextWithSarvam } from '../services/sarvamTranslate';
 import { generatePdfFromHtml } from '../services/puppeteerPdf';
 
@@ -445,6 +449,225 @@ router.post('/assessment/complete', (req: Request, res: Response) => {
     });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Dynamic SOCRATES Question Formulation
+ * POST /api/v1/medikiosk/questions
+ */
+router.post('/questions', async (req: Request, res: Response) => {
+  try {
+    const { chiefComplaint, mode = 'allopathy', language = 'en' } = req.body;
+    if (!chiefComplaint) {
+      return res.status(400).json({ success: false, error: 'Chief complaint is required.' });
+    }
+
+    // 1. Query FastAPI AI Service if running
+    try {
+      const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:8000';
+      const aiRes = await fetch(`${aiServiceUrl}/api/v1/agent/medikiosk/questions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chiefComplaint, mode, language }),
+      });
+
+      if (aiRes.ok) {
+        const aiData: any = await aiRes.json();
+        return res.json(aiData);
+      }
+    } catch (e) {
+      // AI Service offline, use Groq LLM directly
+    }
+
+    // 2. Direct Groq LLM SOCRATES Generation using openai/gpt-oss-120b
+    const groqApiKey = process.env.GROQ_API_KEY;
+    if (groqApiKey) {
+      try {
+        const systemPrompt = `You are an expert clinical intake AI assistant for an outpatient hospital kiosk.
+Take the patient chief complaint and generate 3-5 precise follow-up questions strictly following the SOCRATES clinical framework (Site, Onset, Character, Radiation, Associations, Timing, Exacerbating factors, Severity).
+Output ONLY valid JSON matching this schema:
+{
+  "adaptiveQuestions": [
+    { "id": "site", "question": "Question text in ${language}...", "options": ["Option 1", "Option 2", "Option 3"] }
+  ],
+  "redFlags": []
+}`;
+        const userPrompt = `Patient Chief Complaint: '${chiefComplaint}'\nLanguage: '${language}'\nMode: '${mode}'`;
+
+        const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${groqApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: process.env.GROQ_LLM_MODEL || 'openai/gpt-oss-120b',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt },
+            ],
+            temperature: 0.1,
+          }),
+        });
+
+        if (groqRes.ok) {
+          const gData: any = await groqRes.json();
+          let raw = gData.choices?.[0]?.message?.content || '{}';
+          if (raw.includes('```json')) raw = raw.split('```json')[1].split('```')[0].trim();
+          else if (raw.includes('```')) raw = raw.split('```')[1].split('```')[0].trim();
+          const parsed = JSON.parse(raw);
+          return res.json({
+            success: true,
+            data: {
+              adaptiveQuestions: parsed.adaptiveQuestions || [],
+              redFlagsDetected: parsed.redFlags || [],
+            },
+          });
+        }
+      } catch (err) {
+        console.warn('Groq direct SOCRATES call fallback:', err);
+      }
+    }
+
+    // 3. Deterministic SOCRATES Fallback
+    const isHi = language === 'hi';
+    const fallbackQuestions = isHi ? [
+      { id: 'site', question: 'दर्द या लक्षण का मुख्य स्थान कहाँ है?', options: ['छाती', 'पेट', 'सिर', 'जोड़ / पीठ'] },
+      { id: 'onset', question: 'यह समस्या कब और कैसे शुरू हुई?', options: ['अचानक', 'धीरे-धीरे', 'भोजन के बाद'] },
+      { id: 'severity', question: 'दर्द की तीव्रता 0 से 10 के पैमाने पर बताएं:', options: ['हल्का (1-3)', 'मध्यम (4-6)', 'गंभीर (7-10)'] },
+    ] : [
+      { id: 'site', question: 'Where is the main location of your pain or symptom?', options: ['Chest', 'Stomach / Abdomen', 'Head', 'Back / Joints'] },
+      { id: 'onset', question: 'When and how did your symptoms begin?', options: ['Suddenly', 'Gradually', 'After exertion / eating'] },
+      { id: 'severity', question: 'Rate the severity of your symptoms (1-10):', options: ['Mild (1-3)', 'Moderate (4-6)', 'Severe (7-10)'] },
+    ];
+
+    return res.json({
+      success: true,
+      data: {
+        adaptiveQuestions: fallbackQuestions,
+        redFlagsDetected: [],
+      },
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Submit Completed Kiosk Intake to Doctor Database (MongoDB)
+ * POST /api/v1/medikiosk/submit-to-doctor
+ */
+router.post('/submit-to-doctor', async (req: Request, res: Response) => {
+  try {
+    const {
+      patientProfile,
+      chiefComplaint,
+      socrates = {},
+      symptoms = [],
+      triage = 'GREEN',
+      redFlags = [],
+      vitals = {},
+    } = req.body;
+
+    const patientName = patientProfile?.name || `${patientProfile?.firstName || 'Walk-in'} ${patientProfile?.lastName || 'Patient'}`.trim();
+    const phone = patientProfile?.mobile || patientProfile?.phone || `987${Math.floor(1000000 + Math.random() * 9000000)}`;
+    const [firstName, ...restName] = patientName.split(' ');
+    const lastName = restName.join(' ') || 'Patient';
+
+    // 1. Find or create Patient in MongoDB
+    let patient = await Patient.findOne({ phone }).exec();
+    if (!patient) {
+      patient = new Patient({
+        firstName,
+        lastName,
+        gender: patientProfile?.gender || 'Other',
+        dateOfBirth: patientProfile?.age ? new Date(Date.now() - patientProfile.age * 365.25 * 24 * 3600 * 1000) : new Date('1990-01-01'),
+        phone,
+        email: patientProfile?.email || undefined,
+        address: patientProfile?.address || undefined,
+        medicalHistory: patientProfile?.medicalHistory || [],
+        allergies: patientProfile?.allergies || [],
+      });
+      await patient.save();
+    }
+
+    // 2. Assign Doctor based on Triage Specialty
+    let assignedDoctor = null;
+    const isEmergency = triage === 'RED';
+    if (isEmergency) {
+      assignedDoctor = await Doctor.findOne({ specialization: 'Cardiology', status: 'active' }).exec();
+    }
+    if (!assignedDoctor) {
+      assignedDoctor = await Doctor.findOne({ specialization: 'General Medicine', status: 'active' }).exec();
+    }
+    if (!assignedDoctor) {
+      assignedDoctor = await Doctor.findOne({ status: 'active' }).exec();
+    }
+    if (!assignedDoctor) {
+      assignedDoctor = new Doctor({
+        firstName: 'David',
+        lastName: 'Miller',
+        specialization: 'General Medicine',
+        department: 'Outpatient Clinic',
+        experience: 15,
+        consultationFee: 80,
+        status: 'active',
+      });
+      await assignedDoctor.save();
+    }
+
+    // 3. Synthesize Structured SOAP Notes from SOCRATES
+    const symptomList = symptoms.length > 0
+      ? symptoms.map((s: any) => `${s.bodyRegion || ''}: ${s.symptom || ''} (${s.severity || 'moderate'})`.trim())
+      : [chiefComplaint || 'Consultation Intake'];
+
+    const soapNotes = {
+      subjective: `CHIEF COMPLAINT: ${chiefComplaint || 'General OPD'}\nSOCRATES HISTORY:\n- Site: ${socrates.site || 'Refer to body map'}\n- Onset: ${socrates.onset || 'Recent'}\n- Character: ${socrates.character || 'Ache/Pain'}\n- Radiation: ${socrates.radiation || 'None reported'}\n- Timing: ${socrates.timing || socrates.duration || 'Today'}\n- Severity: ${socrates.severity || 'Moderate'}\nAssociated Symptoms: ${symptomList.join(', ')}`,
+      objective: `Kiosk Vitals & Data: Temp ${vitals?.temperature || '98.6'}°F, BP ${vitals?.bp || '120/80'}. ABHA: ${patientProfile?.abhaNumber || 'Verified'}. Ephemeral intake digitized at kiosk terminal.`,
+      assessment: `Triage Severity: ${triage}. Priority: ${isEmergency ? 'EMERGENCY' : triage === 'AMBER' ? 'URGENT' : 'ROUTINE'}.\nRed Flag Warnings: ${redFlags.length > 0 ? redFlags.join('; ') : 'None detected'}.\nClinical Impression: Draft pre-consultation assessment pending physical examination.`,
+      plan: `Recommended Room: ${isEmergency ? 'Emergency Room 1 (ICU/Crash Cart)' : 'Room 104 (General Medicine OPD)'}.\nDoctor Assigned: Dr. ${assignedDoctor.firstName} ${assignedDoctor.lastName} (${assignedDoctor.specialization}).\nPhysician Review & Prescription Sign-off required.`,
+    };
+
+    const priority = isEmergency ? 'emergency' : triage === 'AMBER' ? 'urgent' : 'routine';
+    const opdToken = isEmergency ? 'EMG-01' : `OPD-${Math.floor(100 + Math.random() * 900)}`;
+
+    // 4. Save Official Consultation Document in MongoDB
+    const consultation = new Consultation({
+      patientId: patient._id,
+      doctorId: assignedDoctor._id,
+      symptoms: symptomList,
+      diagnosis: `Draft Intake: ${chiefComplaint || 'General OPD'}`,
+      treatmentPlan: isEmergency ? 'Immediate Emergency Clinical Evaluation & Vitals Stabilization' : 'Standard Outpatient Consultation',
+      status: 'open',
+      priority,
+      triageNotes: redFlags.length > 0 ? redFlags.join('; ') : 'Kiosk intake completed with no critical flags',
+      triageAIEvaluated: true,
+      soapNotes,
+    });
+    await consultation.save();
+
+    return res.status(201).json({
+      success: true,
+      data: {
+        consultationId: consultation._id,
+        patientId: patient._id,
+        doctorId: assignedDoctor._id,
+        doctorName: `Dr. ${assignedDoctor.firstName} ${assignedDoctor.lastName}`,
+        department: assignedDoctor.department,
+        priority: consultation.priority,
+        opdToken,
+        roomNumber: isEmergency ? 'Emergency Room 1' : 'Room 104 (OPD)',
+        soapNotes: consultation.soapNotes,
+      },
+      message: 'Intake report successfully submitted to doctor database',
+    });
+  } catch (error: any) {
+    console.error('Error submitting intake to doctor:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to submit intake to doctor database',
+    });
   }
 });
 

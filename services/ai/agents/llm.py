@@ -48,8 +48,9 @@ def call_llm(system_prompt: str, user_prompt: str = "", temperature: float = 0.2
     if user_prompt:
         messages.append({"role": "user", "content": user_prompt})
 
+    model = os.environ.get("GROQ_LLM_MODEL", "openai/gpt-oss-120b")
     payload = {
-        "model": "openai/gpt-oss-20b",
+        "model": model,
         "messages": messages,
         "temperature": temperature
     }

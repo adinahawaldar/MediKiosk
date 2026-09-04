@@ -23,7 +23,7 @@ router.post('/pipeline', async (req: Request, res: Response) => {
           transcript = sttResult.transcript;
         }
       } catch (err) {
-        console.warn('Sarvam STT failed, using captured text transcript:', err);
+        console.warn('Whisper STT failed, using captured text transcript:', err);
       }
     }
 
@@ -43,6 +43,7 @@ router.post('/pipeline', async (req: Request, res: Response) => {
         extractedInfo: aiAnalysis.extractedInfo,
         responseText: aiAnalysis.responseText,
         audioBase64: ttsResult.audioBase64,
+        format: ttsResult.format || 'audio/mp3',
         analysis: aiAnalysis,
       },
     });

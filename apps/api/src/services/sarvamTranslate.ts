@@ -17,51 +17,56 @@ export async function translateTextWithSarvam(
   text: string,
   options: TranslateOptions
 ): Promise<TranslateResult> {
-  const apiKey = process.env.SARVAM_API_KEY || '';
+  const groqApiKey = process.env.GROQ_API_KEY;
   const targetCode = options.targetLanguageCode.includes('-')
     ? options.targetLanguageCode
     : `${options.targetLanguageCode}-IN`;
 
-  try {
-    const response = await fetch('https://api.sarvam.ai/translate', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'api-subscription-key': apiKey,
-      },
-      body: JSON.stringify({
-        input: text,
-        source_language_code: options.sourceLanguageCode || 'en-IN',
-        target_language_code: targetCode,
-        mode: 'formal',
-        model: 'mayura:v1',
-      }),
-    });
+  // 1. Groq LLM Real-time Translation
+  if (groqApiKey) {
+    try {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${groqApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: process.env.GROQ_LLM_MODEL || 'openai/gpt-oss-120b',
+          messages: [
+            {
+              role: 'system',
+              content: `You are a clinical UI translator. Translate the text directly to target language code '${targetCode}'. Return ONLY the translation, no commentary, no markdown, no quotes.`,
+            },
+            {
+              role: 'user',
+              content: text,
+            },
+          ],
+          temperature: 0.1,
+        }),
+      });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.warn(`Sarvam Translate API Error (${response.status}): ${errText}`);
-      // Fallback translation engine
-      return {
-        translatedText: fallbackTranslate(text, options.targetLanguageCode),
-        success: false,
-      };
+      if (response.ok) {
+        const data: any = await response.json();
+        const translated = data?.choices?.[0]?.message?.content?.trim();
+        if (translated) {
+          return {
+            translatedText: translated,
+            success: true,
+          };
+        }
+      }
+    } catch (err) {
+      console.warn('Groq translation error, using dictionary fallback:', err);
     }
-
-    const data: any = await response.json();
-    const translated = data?.translated_text || data?.translatedText || text;
-
-    return {
-      translatedText: translated,
-      success: true,
-    };
-  } catch (error: any) {
-    console.error('Sarvam AI Translation Exception:', error?.message || error);
-    return {
-      translatedText: fallbackTranslate(text, options.targetLanguageCode),
-      success: false,
-    };
   }
+
+  // 2. Dictionary Fallback Engine
+  return {
+    translatedText: fallbackTranslate(text, options.targetLanguageCode),
+    success: true,
+  };
 }
 
 /**

@@ -263,6 +263,30 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
       const data = await res.json();
       if (data.success) {
         setSummaryData(data.data);
+
+        // Submit directly to Doctor Database (MongoDB)
+        try {
+          await fetch('/api/v1/medikiosk/submit-to-doctor', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              patientProfile: patientProfile || { name: 'Rahul Sharma', abhaNumber: abhaNumber || '91-9876-5432-1098' },
+              chiefComplaint: mappedSymptoms.map(s => `${s.bodyRegion}: ${s.symptom}`).join(', ') || 'General Consultation',
+              socrates: {
+                site: mappedSymptoms[0]?.bodyRegion || 'Multiple Regions',
+                onset: mappedSymptoms[0]?.onset || 'Recent',
+                severity: mappedSymptoms[0]?.severity || 'Moderate',
+                duration: mappedSymptoms[0]?.duration || 'Today',
+                radiation: mappedSymptoms[0]?.additionalDetails?.radiates ? mappedSymptoms[0]?.additionalDetails?.radiatesTo : 'None',
+              },
+              symptoms: mappedSymptoms,
+              triage: data.data.triage || 'GREEN',
+              redFlags: data.data.redFlags || [],
+            }),
+          });
+        } catch (dbErr) {
+          console.warn('Failed to submit consultation to doctor DB:', dbErr);
+        }
       } else {
         throw new Error(data.error || 'Failed to complete assessment');
       }

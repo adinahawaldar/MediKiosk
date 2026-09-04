@@ -5,6 +5,7 @@ import cors from 'cors';
 import healthRouter from './routes/health.js';
 import voiceRouter from './routes/voice.js';
 import medikioskRouter from './routes/medikiosk.js';
+import doctorRouter from './routes/doctor.js';
 
 const app = express();
 
@@ -21,6 +22,7 @@ app.use(express.json());
 app.use('/api/v1', healthRouter);
 app.use('/api/v1/voice', voiceRouter);
 app.use('/api/v1/medikiosk', medikioskRouter);
+app.use('/api/v1/doctor', doctorRouter);
 
 // Global error handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

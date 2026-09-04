@@ -3,45 +3,80 @@ import Welcome from './components/Welcome.tsx';
 import VoiceScreen from './components/VoiceScreen.tsx';
 import Conversation from './components/Conversation.tsx';
 import MediKioskIntake from './components/medikiosk/MediKioskIntake.tsx';
+import DoctorDashboard from './components/doctor/DoctorDashboard.tsx';
 
 export default function App() {
-  const [screen, setScreen] = useState<'welcome' | 'voice' | 'conversation' | 'medikiosk_3d'>('welcome');
+  const [screen, setScreen] = useState<'welcome' | 'voice' | 'conversation' | 'medikiosk_3d' | 'doctor'>('welcome');
   const [language, setLanguage] = useState<'en' | 'hi' | 'mr'>('en');
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 flex flex-col items-center justify-center p-4">
-      {screen === 'welcome' && (
-        <Welcome
-          language={language}
-          onLanguageChange={(lang) => setLanguage(lang)}
-          onStartIntake={(mode) => {
-            if (mode === 'voice') {
-              setScreen('voice');
-            } else {
-              setScreen('medikiosk_3d');
-            }
-          }}
-        />
-      )}
+    <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col items-center w-full">
+      {/* Universal Top Switcher */}
+      <nav className="w-full bg-slate-900 text-white py-2.5 px-6 flex justify-between items-center shadow-md">
+        <div className="flex items-center space-x-2 font-black tracking-widest text-xs uppercase">
+          <span>🏥</span>
+          <span>HospitalOS MediKiosk</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <button
+            type="button"
+            onClick={() => setScreen('welcome')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${
+              screen !== 'doctor' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-300 hover:text-white'
+            }`}
+          >
+            Patient Kiosk
+          </button>
+          <button
+            type="button"
+            onClick={() => setScreen('doctor')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${
+              screen === 'doctor' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-300 hover:text-white'
+            }`}
+          >
+            🩺 Doctor OPD Portal
+          </button>
+        </div>
+      </nav>
 
-      {screen === 'medikiosk_3d' && (
-        <MediKioskIntake onBackToWelcome={() => setScreen('welcome')} />
-      )}
+      <main className="flex-1 w-full flex flex-col items-center justify-center p-4">
+        {screen === 'doctor' && (
+          <DoctorDashboard onBackToKiosk={() => setScreen('welcome')} />
+        )}
 
-      {screen === 'voice' && (
-        <VoiceScreen
-          language={language}
-          onBack={() => setScreen('welcome')}
-        />
-      )}
+        {screen === 'welcome' && (
+          <Welcome
+            language={language}
+            onLanguageChange={(lang) => setLanguage(lang)}
+            onStartIntake={(mode) => {
+              if (mode === 'voice') {
+                setScreen('voice');
+              } else {
+                setScreen('medikiosk_3d');
+              }
+            }}
+          />
+        )}
 
-      {screen === 'conversation' && (
-        <Conversation
-          language={language}
-          onBack={() => setScreen('welcome')}
-          onComplete={() => setScreen('welcome')}
-        />
-      )}
+        {screen === 'medikiosk_3d' && (
+          <MediKioskIntake onBackToWelcome={() => setScreen('welcome')} />
+        )}
+
+        {screen === 'voice' && (
+          <VoiceScreen
+            language={language}
+            onBack={() => setScreen('welcome')}
+          />
+        )}
+
+        {screen === 'conversation' && (
+          <Conversation
+            language={language}
+            onBack={() => setScreen('welcome')}
+            onComplete={() => setScreen('welcome')}
+          />
+        )}
+      </main>
     </div>
   );
 }
