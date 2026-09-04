@@ -171,9 +171,9 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
   const routineCount = consultations.filter(c => c.priority === 'routine').length;
 
   return (
-    <div className="w-full max-w-7xl mx-auto min-h-screen bg-slate-50 text-slate-900 p-4 md:p-8 font-sans antialiased">
+    <div className="w-full max-w-7xl mx-auto min-h-screen bg-white text-slate-900 p-4 md:p-8 font-sans antialiased">
       
-      {/* Top Bar with Refresh & Middle Headline */}
+      {/* Top Bar with Refresh */}
       <div className="w-full flex justify-between items-center mb-2">
         <div></div>
         <button
@@ -186,7 +186,7 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
       </div>
 
       {/* Centered Top Headline */}
-      <div className="w-full text-center mb-8">
+      <div className="w-full text-center mb-6">
         <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight uppercase">
           Doctor OPD Consultation Portal
         </h1>
@@ -195,78 +195,39 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
         </p>
       </div>
 
-      {error && (
-        <div className="p-3.5 bg-white border border-rose-200 text-rose-800 text-xs rounded-xl mb-4 font-bold shadow-sm">
-          {error}
-        </div>
-      )}
-
-      {/* Metrics Row (Neutral Professional Boxes) */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div
+      {/* Metrics Row (Clean Unboxed Stat Bar) */}
+      <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-12 mb-8 py-3 border-y border-slate-100 text-xs font-semibold">
+        <button
+          type="button"
           onClick={() => setFilterPriority('all')}
-          className={`p-4 rounded-2xl border cursor-pointer transition-all ${
-            filterPriority === 'all'
-              ? 'bg-slate-900 text-white border-slate-900 shadow-md'
-              : 'bg-white text-slate-900 border-slate-200 hover:border-slate-300 shadow-sm'
-          }`}
+          className={`transition-all cursor-pointer ${filterPriority === 'all' ? 'text-slate-900 font-black underline underline-offset-4' : 'text-slate-500 hover:text-slate-800'}`}
         >
-          <span className="text-[10px] font-black uppercase tracking-widest block opacity-75 mb-1">
-            Total in Queue
-          </span>
-          <span className="text-3xl font-black">{consultations.length}</span>
-        </div>
-
-        <div
+          Total in Queue: <span className="font-extrabold text-slate-900 ml-1 text-sm">{consultations.length}</span>
+        </button>
+        <span className="text-slate-300">|</span>
+        <button
+          type="button"
           onClick={() => setFilterPriority('emergency')}
-          className={`p-4 rounded-2xl border cursor-pointer transition-all ${
-            filterPriority === 'emergency'
-              ? 'bg-slate-900 text-white border-slate-900 shadow-md'
-              : 'bg-white text-slate-900 border-slate-200 hover:border-slate-300 shadow-sm'
-          }`}
+          className={`transition-all cursor-pointer ${filterPriority === 'emergency' ? 'text-slate-900 font-black underline underline-offset-4' : 'text-slate-500 hover:text-slate-800'}`}
         >
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-black uppercase tracking-widest block opacity-75">
-              Emergency Triage
-            </span>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700">RED</span>
-          </div>
-          <span className="text-3xl font-black">{emergencyCount}</span>
-        </div>
-
-        <div
+          Emergency (RED): <span className="font-extrabold text-slate-900 ml-1 text-sm">{emergencyCount}</span>
+        </button>
+        <span className="text-slate-300">|</span>
+        <button
+          type="button"
           onClick={() => setFilterPriority('urgent')}
-          className={`p-4 rounded-2xl border cursor-pointer transition-all ${
-            filterPriority === 'urgent'
-              ? 'bg-slate-900 text-white border-slate-900 shadow-md'
-              : 'bg-white text-slate-900 border-slate-200 hover:border-slate-300 shadow-sm'
-          }`}
+          className={`transition-all cursor-pointer ${filterPriority === 'urgent' ? 'text-slate-900 font-black underline underline-offset-4' : 'text-slate-500 hover:text-slate-800'}`}
         >
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-black uppercase tracking-widest block opacity-75">
-              Urgent Triage
-            </span>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700">AMBER</span>
-          </div>
-          <span className="text-3xl font-black">{urgentCount}</span>
-        </div>
-
-        <div
+          Urgent (AMBER): <span className="font-extrabold text-slate-900 ml-1 text-sm">{urgentCount}</span>
+        </button>
+        <span className="text-slate-300">|</span>
+        <button
+          type="button"
           onClick={() => setFilterPriority('routine')}
-          className={`p-4 rounded-2xl border cursor-pointer transition-all ${
-            filterPriority === 'routine'
-              ? 'bg-slate-900 text-white border-slate-900 shadow-md'
-              : 'bg-white text-slate-900 border-slate-200 hover:border-slate-300 shadow-sm'
-          }`}
+          className={`transition-all cursor-pointer ${filterPriority === 'routine' ? 'text-slate-900 font-black underline underline-offset-4' : 'text-slate-500 hover:text-slate-800'}`}
         >
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-black uppercase tracking-widest block opacity-75">
-              Routine Triage
-            </span>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700">GREEN</span>
-          </div>
-          <span className="text-3xl font-black">{routineCount}</span>
-        </div>
+          Routine (GREEN): <span className="font-extrabold text-slate-900 ml-1 text-sm">{routineCount}</span>
+        </button>
       </div>
 
       {/* Main Grid: Queue List + Clinical Detail */}
@@ -368,7 +329,7 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
 
               {/* Safety Alert Banner */}
               {selectedConsultation.triageNotes && (
-                <div className="p-4 rounded-xl border bg-white border-slate-200 text-slate-900 shadow-sm">
+                <div className="py-3 border-b border-slate-100 text-slate-900">
                   <span className="text-[10px] font-black uppercase tracking-widest block mb-1 text-slate-500">
                     Clinical Intake Notes
                   </span>
@@ -377,7 +338,7 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
               )}
 
               {/* Triage Adjustment Section */}
-              <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-sm space-y-3">
+              <div className="py-3 border-b border-slate-100 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-xs font-black uppercase tracking-wider text-slate-900">
                     Triage Score: <span className="text-slate-700">{selectedConsultation.triageScore ?? 0}/100</span>
@@ -410,24 +371,24 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
                 </div>
               </div>
 
-              {/* Structured SOAP Clinical Report (Uniform Neutral Boxes) */}
+              {/* Structured SOAP Clinical Report (Unboxed Clean Sections) */}
               <div className="space-y-4">
                 <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 border-b border-slate-200 pb-2">
                   AI Pre-Consultation Intake Report (SOAP)
                 </h3>
 
                 {/* S - Subjective */}
-                <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-sm text-xs space-y-2">
+                <div className="py-3 border-b border-slate-100 text-xs space-y-1.5">
                   <span className="font-extrabold text-slate-900 uppercase tracking-wider block text-[11px]">
                     [S] Subjective & SOCRATES Breakdown
                   </span>
-                  <div className="text-slate-800 whitespace-pre-line font-medium leading-relaxed">
+                  <div className="text-slate-700 whitespace-pre-line font-medium leading-relaxed">
                     {selectedConsultation.soapNotes?.subjective || selectedConsultation.symptoms.join('\n')}
                   </div>
                 </div>
 
                 {/* O - Objective */}
-                <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-sm text-xs space-y-1">
+                <div className="py-3 border-b border-slate-100 text-xs space-y-1.5">
                   <span className="font-extrabold text-slate-900 uppercase tracking-wider block text-[11px]">
                     [O] Objective Kiosk Vitals & Data
                   </span>
@@ -437,21 +398,21 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
                 </div>
 
                 {/* A - Assessment */}
-                <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-sm text-xs space-y-1">
+                <div className="py-3 border-b border-slate-100 text-xs space-y-1.5">
                   <span className="font-extrabold text-slate-900 uppercase tracking-wider block text-[11px]">
                     [A] AI Clinical Assessment & Triage
                   </span>
-                  <p className="text-slate-800 font-medium whitespace-pre-line">
+                  <p className="text-slate-700 font-medium whitespace-pre-line">
                     {selectedConsultation.soapNotes?.assessment || selectedConsultation.diagnosis}
                   </p>
                 </div>
 
                 {/* P - Plan */}
-                <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-sm text-xs space-y-1">
+                <div className="py-3 text-xs space-y-1.5">
                   <span className="font-extrabold text-slate-900 uppercase tracking-wider block text-[11px]">
                     [P] Care Plan & Disposition
                   </span>
-                  <p className="text-slate-800 font-medium whitespace-pre-line">
+                  <p className="text-slate-700 font-medium whitespace-pre-line">
                     {selectedConsultation.soapNotes?.plan || 'Proceed with physical examination.'}
                   </p>
                 </div>
