@@ -200,6 +200,7 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
       let base64Audio = '';
 
       if (audioBlob) {
+        const targetBlob = audioBlob;
         base64Audio = await new Promise<string>((resolve) => {
           const reader = new FileReader();
 
@@ -210,7 +211,7 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
             resolve(res);
           };
 
-          reader.readAsDataURL(audioBlob);
+          reader.readAsDataURL(targetBlob);
         });
       }
 

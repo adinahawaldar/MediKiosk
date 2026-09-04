@@ -11,8 +11,8 @@
     "dev:api": "npm run dev --workspace=apps/api",
     "dev:ai": "powershell -Command \"cd services/ai; & .venv/Scripts/python -m uvicorn main:app --reload --port 8000\"",
     "dev": "concurrently \"npm run dev:web\" \"npm run dev:api\" \"npm run dev:ai\"",
-    "build:web": "npm run build --workspace=hospitalos-web",
-    "build": "npm run build --workspace=hospitalos-web",
+    "build:web": "npm run build --workspace=apps/web",
+    "build": "npm run build --workspace=apps/web",
     "setup:ai": "powershell -Command \"cd services/ai; python -m venv .venv; & .venv/Scripts/python -m pip install -r requirements.txt\"",
     "install:all": "npm install --legacy-peer-deps && npm run setup:ai"
   },
