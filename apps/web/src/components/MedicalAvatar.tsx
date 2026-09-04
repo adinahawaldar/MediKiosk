@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-export type AvatarStatus = 'idle' | 'listening' | 'loading' | 'done';
+export type AvatarStatus = 'idle' | 'listening' | 'loading' | 'socrates' | 'done';
 
 export interface MedicalAvatarProps {
   status?: AvatarStatus;
