@@ -260,15 +260,15 @@ const INITIAL_DEMO_CONSULTATIONS: ConsultationItem[] = [
 
 export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk }) => {
   const [consultations, setConsultations] = useState<ConsultationItem[]>(INITIAL_DEMO_CONSULTATIONS);
-  const [selectedConsultation, setSelectedConsultation] = useState<ConsultationItem | null>(INITIAL_DEMO_CONSULTATIONS[0]);
+  const [selectedConsultation, setSelectedConsultation] = useState<ConsultationItem | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [filterPriority, setFilterPriority] = useState<'all' | 'emergency' | 'urgent' | 'routine'>('all');
-  const [doctorNotes, setDoctorNotes] = useState<string>(INITIAL_DEMO_CONSULTATIONS[0].treatmentPlan || '');
+  const [doctorNotes, setDoctorNotes] = useState<string>('');
   const [isSigningOff, setIsSigningOff] = useState<boolean>(false);
   const [summaryPayload, setSummaryPayload] = useState<DoctorSummaryPayload | null>(null);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
-  const [triageOverride, setTriageOverride] = useState<'emergency' | 'urgent' | 'routine' | ''>(INITIAL_DEMO_CONSULTATIONS[0].priority);
+  const [triageOverride, setTriageOverride] = useState<'emergency' | 'urgent' | 'routine' | ''>('');
   const [triageOverrideReason, setTriageOverrideReason] = useState('');
   const [isSavingTriage, setIsSavingTriage] = useState(false);
 
@@ -279,9 +279,6 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
       const data = await res.json();
       if (data.success && data.data.consultations?.length > 0) {
         setConsultations(data.data.consultations);
-        if (!selectedConsultation) {
-          setSelectedConsultation(data.data.consultations[0]);
-        }
       }
     } catch (err: any) {
       console.warn('Backend API connection offline, utilizing demo queue state');
