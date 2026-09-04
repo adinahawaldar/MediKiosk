@@ -171,38 +171,40 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
   const routineCount = consultations.filter(c => c.priority === 'routine').length;
 
   return (
-    <div className="w-full max-w-7xl mx-auto min-h-screen bg-slate-50 text-slate-900 p-4 md:p-6 font-sans antialiased">
-      {/* Top Header */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white border border-slate-200 p-5 rounded-2xl shadow-sm mb-6 gap-4">
+    <div className="w-full max-w-7xl mx-auto min-h-screen bg-gradient-to-b from-slate-100/90 via-slate-50 to-blue-50/20 text-slate-900 p-4 md:p-8 font-sans antialiased">
+      {/* Page Header (Clean Unboxed Heading) */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 pb-4 border-b border-slate-200/80">
         <div>
           <div className="flex items-center space-x-3">
-            <span className="w-2.5 h-7 bg-blue-600 rounded-full inline-block"></span>
-            <h1 className="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight">
-              HospitalOS Doctor OPD Consultation Portal
-            </h1>
+            <div className="w-2.5 h-8 bg-blue-600 rounded-full"></div>
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-0.5">
+                Clinical Outpatient Department
+              </span>
+              <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                Doctor OPD Consultation Portal
+              </h1>
+            </div>
           </div>
-          <p className="text-xs text-slate-500 font-medium mt-1 pl-5">
-            Real-time Pre-Consultation AI Intake, SOCRATES Summaries & Emergency Triage
-          </p>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-3 shrink-0">
           <button
             type="button"
             onClick={fetchQueue}
-            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
+            className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm flex items-center space-x-1.5"
           >
-            Refresh Queue
+            <span>Refresh Queue</span>
           </button>
           <button
             type="button"
             onClick={onBackToKiosk}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold shadow-sm transition-all cursor-pointer"
+            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-extrabold shadow-sm transition-all cursor-pointer"
           >
-            Open Patient Kiosk
+            Open Patient Kiosk →
           </button>
         </div>
-      </header>
+      </div>
 
       {error && (
         <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl mb-4 font-bold">
