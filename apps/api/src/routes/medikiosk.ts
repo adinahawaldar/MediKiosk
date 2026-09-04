@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import mongoose from 'mongoose';
 import { translateTextWithSarvam } from '../services/sarvamTranslate.js';
 import { Consultation } from '../models/Consultation.js';
 import { Doctor } from '../models/Doctor.js';
@@ -700,6 +701,12 @@ router.post('/submit-to-doctor', async (req: Request, res: Response) => {
     const phone = patientProfile?.mobile || patientProfile?.phone || `987${Math.floor(1000000 + Math.random() * 9000000)}`;
     const [firstName, ...restName] = patientName.split(' ');
     const lastName = restName.join(' ') || 'Patient';
+    const isConnected = mongoose.connection.readyState === 1;
+    let patientId = `PAT-${Math.floor(100000 + Math.random() * 900000)}`;
+    let doctorId = `DOC-${Math.floor(1000 + Math.random() * 9000)}`;
+    let doctorName = 'Dr. David Miller';
+    let department = 'General Medicine';
+    let consultationId = `CNS-${Math.floor(100000 + Math.random() * 900000)}`;
 
     // 1. Find or create Patient in MongoDB
     let patient = await Patient.findOne({ phone }).exec();
@@ -748,6 +755,53 @@ router.post('/submit-to-doctor', async (req: Request, res: Response) => {
         status: 'active',
       });
       await assignedDoctor.save();
+    const isEmergency = triage === 'RED';
+
+    if (isConnected) {
+      // 1. Find or create Patient in MongoDB
+      let patient = await Patient.findOne({ phone }).exec();
+      if (!patient) {
+        patient = new Patient({
+          firstName,
+          lastName,
+          gender: patientProfile?.gender || 'Other',
+          dateOfBirth: patientProfile?.age ? new Date(Date.now() - patientProfile.age * 365.25 * 24 * 3600 * 1000) : new Date('1990-01-01'),
+          phone,
+          email: patientProfile?.email || undefined,
+          address: patientProfile?.address || undefined,
+          medicalHistory: patientProfile?.medicalHistory || [],
+          allergies: patientProfile?.allergies || [],
+        });
+        await patient.save();
+      }
+      patientId = String(patient._id);
+
+      // 2. Assign Doctor based on Triage Specialty
+      let assignedDoctor = null;
+      if (isEmergency) {
+        assignedDoctor = await Doctor.findOne({ specialization: 'Cardiology', status: 'active' }).exec();
+      }
+      if (!assignedDoctor) {
+        assignedDoctor = await Doctor.findOne({ specialization: 'General Medicine', status: 'active' }).exec();
+      }
+      if (!assignedDoctor) {
+        assignedDoctor = await Doctor.findOne({ status: 'active' }).exec();
+      }
+      if (!assignedDoctor) {
+        assignedDoctor = new Doctor({
+          firstName: 'David',
+          lastName: 'Miller',
+          specialization: 'General Medicine',
+          department: 'Outpatient Clinic',
+          experience: 15,
+          consultationFee: 80,
+          status: 'active',
+        });
+        await assignedDoctor.save();
+      }
+      doctorId = String(assignedDoctor._id);
+      doctorName = `Dr. ${assignedDoctor.firstName} ${assignedDoctor.lastName}`;
+      department = assignedDoctor.department;
     }
 
     // 3. Synthesize Structured SOAP Notes from SOCRATES
@@ -756,7 +810,7 @@ router.post('/submit-to-doctor', async (req: Request, res: Response) => {
       subjective: `CHIEF COMPLAINT: ${chiefComplaint || 'General OPD'}\nSOCRATES HISTORY:\n- Site: ${socrates.site || 'Refer to body map'}\n- Onset: ${socrates.onset || 'Recent'}\n- Character: ${socrates.character || 'Ache/Pain'}\n- Radiation: ${socrates.radiation || 'None reported'}\n- Timing: ${socrates.timing || socrates.duration || 'Today'}\n- Severity: ${socrates.severity || 'Moderate'}\nAssociated Symptoms: ${symptomList.join(', ')}`,
       objective: `Kiosk Vitals & Data: ${vitalText}. Historical BP/sugar values, if available, are sourced from scanned records only. ABHA: ${patientProfile?.abhaNumber || 'Verified'}. Ephemeral intake digitized at kiosk terminal.`,
       assessment: `Triage Severity: ${triage}. Priority: ${isEmergency ? 'EMERGENCY' : triage === 'AMBER' ? 'URGENT' : 'ROUTINE'}.\nRed Flag Warnings: ${redFlags.length > 0 ? redFlags.join('; ') : 'None detected'}.\nClinical Impression: Draft pre-consultation assessment pending physical examination.`,
-      plan: `Recommended Room: ${isEmergency ? 'Emergency Room 1 (ICU/Crash Cart)' : 'Room 104 (General Medicine OPD)'}.\nDoctor Assigned: Dr. ${assignedDoctor.firstName} ${assignedDoctor.lastName} (${assignedDoctor.specialization}).\nPhysician Review & Prescription Sign-off required.`,
+      plan: `Recommended Room: ${isEmergency ? 'Emergency Room 1 (ICU/Crash Cart)' : 'Room 104 (General Medicine OPD)'}.\nDoctor Assigned: ${doctorName} (${department}).\nPhysician Review & Prescription Sign-off required.`,
     };
 
     const finalTriage = triageAssessment.triage === 'RED' ? 'emergency' : triageAssessment.triage === 'AMBER' ? 'urgent' : 'routine';
@@ -782,6 +836,23 @@ router.post('/submit-to-doctor', async (req: Request, res: Response) => {
       soapNotes,
     });
     await consultation.save();
+    if (isConnected) {
+      // 4. Save Official Consultation Document in MongoDB
+      const consultation = new Consultation({
+        patientId,
+        doctorId,
+        symptoms: symptomList,
+        diagnosis: `Draft Intake: ${chiefComplaint || 'General OPD'}`,
+        treatmentPlan: isEmergency ? 'Immediate Emergency Clinical Evaluation & Vitals Stabilization' : 'Standard Outpatient Consultation',
+        status: 'open',
+        priority,
+        triageNotes: redFlags.length > 0 ? redFlags.join('; ') : 'Kiosk intake completed with no critical flags',
+        triageAIEvaluated: true,
+        soapNotes,
+      });
+      await consultation.save();
+      consultationId = String(consultation._id);
+    }
 
     return res.status(201).json({
       success: true,
@@ -794,9 +865,15 @@ router.post('/submit-to-doctor', async (req: Request, res: Response) => {
         priority: consultation.priority,
         triageScore: consultation.triageScore,
         triageReason: triageAssessment.reason,
+        consultationId,
+        patientId,
+        doctorId,
+        doctorName,
+        department,
+        priority,
         opdToken,
         roomNumber: isEmergency ? 'Emergency Room 1' : 'Room 104 (OPD)',
-        soapNotes: consultation.soapNotes,
+        soapNotes,
       },
       message: 'Intake report successfully submitted to doctor database',
     });
@@ -912,96 +989,289 @@ router.post('/analyze-symptom', (req: Request, res: Response) => {
   }
 });
 
+export interface SocratesData {
+  site?: string;
+  onset?: string;
+  character?: string;
+  radiation?: string;
+  associatedSymptoms?: string;
+  triggers?: string;
+  severity?: string;
+}
+
+export function parseSocratesFromText(text: string, existing: SocratesData = {}): SocratesData {
+  const t = (text || '').toLowerCase();
+  const res: SocratesData = { ...existing };
+
+  // Site
+  if (t.includes('upper abdomen') || t.includes('upper abdominal') || t.includes('upper stomach')) res.site = 'Upper abdomen';
+  else if (t.includes('lower abdomen') || t.includes('lower abdominal') || t.includes('lower stomach')) res.site = 'Lower abdomen';
+  else if (t.includes('right lower') || t.includes('appendix')) res.site = 'Right lower abdomen';
+  else if (t.includes('left chest')) res.site = 'Left chest';
+  else if (t.includes('center chest') || t.includes('middle of chest')) res.site = 'Center of chest';
+  else if (t.includes('forehead')) res.site = 'Forehead';
+  else if (t.includes('one side of head')) res.site = 'One side of head';
+  else if (!res.site || res.site === 'Stomach' || res.site === 'Chest' || res.site === 'Head') {
+    if (t.includes('stomach') || t.includes('abdomen') || t.includes('belly')) res.site = 'Stomach / Abdomen';
+    else if (t.includes('chest')) res.site = 'Chest';
+    else if (t.includes('head')) res.site = 'Head';
+    else if (t.includes('skin') || t.includes('rash')) res.site = 'Skin / Derm';
+    else if (t.includes('knee')) res.site = 'Knee Joint';
+    else if (t.includes('shoulder')) res.site = 'Shoulder';
+  }
+
+  // Onset
+  if (t.includes('yesterday') || t.includes('1 day') || t.includes('24 hour')) res.onset = '1 day (Since yesterday)';
+  else if (t.includes('today') || t.includes('morning') || t.includes('few hours') || t.includes('started today')) res.onset = 'Started today';
+  else if (t.includes('2 days') || t.includes('3 days') || t.includes('couple of days')) res.onset = '2-3 days ago';
+  else if (t.includes('week') || t.includes('multiple days')) res.onset = 'More than a week ago';
+  else if (t.includes('sudden')) res.onset = 'Sudden onset';
+  else if (t.includes('gradual')) res.onset = 'Gradual onset';
+
+  // Character
+  if (t.includes('burning') || t.includes('acidity') || t.includes('reflux')) res.character = 'Burning';
+  else if (t.includes('sharp') || t.includes('stabbing') || t.includes('cramping') || t.includes('spasm')) res.character = 'Sharp / Cramping';
+  else if (t.includes('crushing') || t.includes('heavy') || t.includes('pressure')) res.character = 'Heavy crushing pressure';
+  else if (t.includes('throbbing') || t.includes('pulsat')) res.character = 'Throbbing';
+  else if (t.includes('itchy') || t.includes('itching')) res.character = 'Itchy & Irritated';
+  else if (t.includes('dull') || t.includes('ache')) res.character = 'Dull ache';
+
+  // Radiation
+  if (t.includes('left arm') || t.includes('jaw') || t.includes('spreads to left')) res.radiation = 'Spreads to left arm / jaw';
+  else if (t.includes('back') || t.includes('moves to back')) res.radiation = 'Moves to back';
+  else if (t.includes('shoulder') || t.includes('chest')) res.radiation = 'Moves to chest / shoulder';
+  else if (t.includes('no') || t.includes('none') || t.includes('stays') || t.includes('without radiation') || t.includes('not radiating')) res.radiation = 'None reported';
+
+  // Associated Symptoms
+  if (t.includes('nausea') || t.includes('nauseous') || t.includes('sick')) res.associatedSymptoms = res.associatedSymptoms ? (res.associatedSymptoms.includes('Nausea') ? res.associatedSymptoms : `${res.associatedSymptoms}, Nausea`) : 'Nausea';
+  if (t.includes('vomit') || t.includes('throwing up') || t.includes('puke')) res.associatedSymptoms = res.associatedSymptoms ? (res.associatedSymptoms.includes('Vomiting') ? res.associatedSymptoms : `${res.associatedSymptoms}, Vomiting`) : 'Vomiting';
+  if (t.includes('fever') || t.includes('chills')) res.associatedSymptoms = res.associatedSymptoms ? (res.associatedSymptoms.includes('Fever') ? res.associatedSymptoms : `${res.associatedSymptoms}, Fever`) : 'Fever';
+  if (t.includes('breath') || t.includes('breathless') || t.includes('shortness')) res.associatedSymptoms = res.associatedSymptoms ? (res.associatedSymptoms.includes('Shortness of breath') ? res.associatedSymptoms : `${res.associatedSymptoms}, Shortness of breath`) : 'Shortness of breath';
+  if (t.includes('sweat')) res.associatedSymptoms = res.associatedSymptoms ? (res.associatedSymptoms.includes('Sweating') ? res.associatedSymptoms : `${res.associatedSymptoms}, Sweating`) : 'Sweating';
+  if (t.includes('dizzy') || t.includes('giddiness') || t.includes('lighthead')) res.associatedSymptoms = res.associatedSymptoms ? (res.associatedSymptoms.includes('Dizziness') ? res.associatedSymptoms : `${res.associatedSymptoms}, Dizziness`) : 'Dizziness';
+  if (t.includes('none') || t.includes('no other')) res.associatedSymptoms = res.associatedSymptoms || 'None reported';
+
+  // Triggers / Exacerbating factors
+  if (t.includes('worse after eating') || t.includes('after food') || t.includes('after eating') || t.includes('eating')) res.triggers = 'Worse after eating';
+  else if (t.includes('deep breath') || t.includes('breathing')) res.triggers = 'Worse on deep breath';
+  else if (t.includes('exertion') || t.includes('walking') || t.includes('exercise')) res.triggers = 'Worse with exertion';
+  else if (t.includes('lying flat') || t.includes('lying down')) res.triggers = 'Worse when lying flat';
+  else if (t.includes('soap') || t.includes('cosmetic') || t.includes('medicine') || t.includes('food')) res.triggers = 'New product / exposure';
+
+  // Severity
+  const numMatch = t.match(/\b([1-9]|10)\b/);
+  if (numMatch) {
+    res.severity = `${numMatch[1]}/10`;
+  } else if (t.includes('severe') || t.includes('disruptive')) {
+    res.severity = '7/10 (Severe)';
+  } else if (t.includes('emergency') || t.includes('critical') || t.includes('very severe')) {
+    res.severity = '9/10 (Very Severe)';
+  } else if (t.includes('moderate') || t.includes('uncomfortable')) {
+    res.severity = '5/10 (Moderate)';
+  } else if (t.includes('mild') || t.includes('noticeable')) {
+    res.severity = '3/10 (Mild)';
+  }
+
+  return res;
+}
+
 /**
- * Adaptive Multi-Turn AI Intake Engine (SOCRATES Framework: 4-5 Deep Questions)
+ * Adaptive Multi-Turn AI Intake Engine (SOCRATES Framework: Site, Onset, Character, Radiation, Associations, Timing/Triggers, Severity)
  * POST /api/v1/medikiosk/converse-turn
  */
 router.post('/converse-turn', async (req: Request, res: Response) => {
   try {
-    const { query, regionId, regionName, turnCount = 1 } = req.body;
+    const { query, regionId, regionName, turnCount = 1, socratesState = {} } = req.body;
     const text = (query || '').toLowerCase().trim();
 
+    // 1. Update SOCRATES state by parsing current input
+    const currentSocrates: SocratesData = parseSocratesFromText(query, socratesState);
+    if (regionName && !currentSocrates.site) {
+      currentSocrates.site = regionName;
+    }
+
+    // 2. Red Flag & Triage Assessment
     let redFlag = false;
+    const redFlagsDetected: string[] = [];
     let triage: 'RED' | 'AMBER' | 'GREEN' = 'GREEN';
-    if (text.includes('chest pain') || text.includes('radiat') || text.includes('breathless') || text.includes('blood')) {
+
+    const fullText = `${text} ${JSON.stringify(currentSocrates)}`.toLowerCase();
+
+    if (fullText.includes('chest pain') && (fullText.includes('left arm') || fullText.includes('jaw') || fullText.includes('breath') || fullText.includes('sweat') || fullText.includes('crushing'))) {
       redFlag = true;
       triage = 'RED';
+      redFlagsDetected.push('CRITICAL: Potential Acute Coronary Syndrome / Severe Cardiac Distress');
+    } else if (fullText.includes('thunderclap') || (fullText.includes('headache') && (fullText.includes('neck stiff') || fullText.includes('paralysis') || fullText.includes('slurred')))) {
+      redFlag = true;
+      triage = 'RED';
+      redFlagsDetected.push('CRITICAL: Neurological / Stroke Warning');
+    } else if (fullText.includes('chest') && fullText.includes('severe')) {
+      triage = 'AMBER';
+      redFlagsDetected.push('WARNING: Severe Chest Discomfort Flagged');
+    } else if (fullText.includes('headache') && fullText.includes('severe')) {
+      triage = 'AMBER';
+      redFlagsDetected.push('WARNING: Severe Acute Headache Flagged');
     }
+
+    // 3. Determine Complaint Pathway
+    const isChest = fullText.includes('chest') || regionId === 'chest';
+    const isStomach = fullText.includes('stomach') || fullText.includes('vomit') || fullText.includes('nausea') || fullText.includes('abdomen') || regionId === 'stomach';
+    const isRash = fullText.includes('rash') || fullText.includes('skin') || fullText.includes('itch');
+    const isHead = fullText.includes('head') || fullText.includes('migraine') || regionId === 'head';
 
     let aiQuestion = '';
     let options: string[] = [];
-    let isComplete = turnCount >= 4 || triage === 'RED';
+    let isComplete = false;
 
-    const isVomiting = text.includes('vomit') || text.includes('vometting') || text.includes('nausea') || text.includes('stomach') || regionId === 'stomach';
-    const isChest = text.includes('chest') || text.includes('cough') || text.includes('breath') || regionId === 'chest';
-    const isHead = text.includes('head') || text.includes('fever') || text.includes('dizzy') || regionId === 'head';
-    const isKidney = text.includes('kidney') || text.includes('urine') || text.includes('flank') || text.includes('urinary') || regionId === 'kidney';
-
-    if (turnCount === 1) {
-      if (isKidney) {
-        aiQuestion = `What specific kidney or urinary problem are you experiencing?`;
-        options = ['Lower Back / Flank Pain', 'Burning Urination', 'Frequent Urination', 'Kidney Stones / Cramps'];
-      } else if (isVomiting) {
-        aiQuestion = `How many times have you vomited or felt nauseous today?`;
-        options = ['1 to 2 times', '3 to 5 times', 'More than 5 times', 'Constant nausea only'];
-      } else if (isChest) {
-        aiQuestion = `When did the chest or breathing discomfort start, and what does it feel like?`;
-        options = ['Started today', 'Sharp stabbing pain', 'Heavy pressure on chest', 'Shortness of breath with cough'];
-      } else if (isHead) {
-        aiQuestion = `How long have you had this headache or fever, and how bad is it?`;
-        options = ['Started today', 'Last 2-3 days', 'Severe throbbing pain', 'High fever with body ache'];
+    // SOCRATES step evaluation
+    if (isChest) {
+      if (!currentSocrates.site) {
+        aiQuestion = 'Where in your chest do you feel the pain or discomfort?';
+        options = ['Center of chest', 'Left side of chest', 'Right side of chest', 'Chest & upper back'];
+      } else if (!currentSocrates.onset) {
+        aiQuestion = 'When did the chest discomfort start?';
+        options = ['Suddenly today', '1 to 2 hours ago', 'Gradually over days', 'After physical exertion'];
+      } else if (!currentSocrates.character) {
+        aiQuestion = 'What does the chest discomfort feel like — crushing pressure, sharp stabbing, or burning?';
+        options = ['Heavy crushing pressure', 'Sharp stabbing pain', 'Burning heartburn', 'Tight constriction'];
+      } else if (!currentSocrates.radiation) {
+        aiQuestion = 'Does the chest pain move or radiate to your back, chest, left arm, or shoulder?';
+        options = ['Spreads to left arm / jaw', 'Spreads to shoulder/back', 'Stays in center of chest', 'No radiation'];
+      } else if (!currentSocrates.associatedSymptoms) {
+        aiQuestion = 'Do you have shortness of breath, cold sweating, dizziness, or nausea?';
+        options = ['Shortness of breath', 'Cold sweating', 'Dizziness & lightheadedness', 'Nausea', 'None of these'];
+      } else if (!currentSocrates.triggers) {
+        aiQuestion = 'What makes the chest pain worse — taking a deep breath, exertion, or lying flat?';
+        options = ['Worse on deep breath', 'Worse with exertion', 'Worse lying flat', 'No specific trigger'];
+      } else if (!currentSocrates.severity) {
+        aiQuestion = 'On a scale of 1–10, how severe is your chest discomfort?';
+        options = ['Mild (1-3)', 'Moderate (4-6)', 'Severe (7-9)', 'Critical Emergency (10)'];
       } else {
-        aiQuestion = `What specific problem or pain are you experiencing in your ${regionName}?`;
-        options = ['Sharp Pain', 'Dull Ache', 'Burning / Swelling', 'Stiffness / Strain'];
+        isComplete = true;
       }
-    } else if (turnCount === 2) {
-      if (isKidney) {
-        aiQuestion = `How long have you had this kidney or flank discomfort, and does the pain come in sharp waves?`;
-        options = ['Started today', 'Sharp spasmodic pain', 'Dull ache in lower back', 'Fever with chills'];
-      } else if (isVomiting) {
-        aiQuestion = `Is the vomiting accompanied by abdominal pain, fever, or acidity?`;
-        options = ['Severe stomach pain', 'Mild fever & chills', 'Heavy acid reflux / burning', 'No other symptoms'];
-      } else if (isChest) {
-        aiQuestion = `Does the chest pain spread to your left arm, shoulder, or jaw?`;
-        options = ['Yes, spreads to left arm', 'Spreads to shoulder/back', 'Stays in center of chest', 'No radiation'];
-      } else if (isHead) {
-        aiQuestion = `Do you have any dizziness, nausea, light sensitivity, or neck stiffness?`;
-        options = ['Dizziness & lightheadedness', 'Nausea & vomiting', 'Neck stiffness', 'None of these'];
+    } else if (isStomach) {
+      if (!currentSocrates.site) {
+        aiQuestion = 'Where exactly is the pain located?';
+        options = ['Upper abdomen', 'Lower abdomen', 'Right lower side', 'All over stomach'];
+      } else if (!currentSocrates.onset) {
+        aiQuestion = 'When did the abdominal pain or discomfort start?';
+        options = ['Today', 'Yesterday', '2-3 days ago', 'More than a week ago'];
+      } else if (!currentSocrates.character) {
+        aiQuestion = 'What does it feel like — burning, sharp, cramping, or something else?';
+        options = ['Burning', 'Sharp cramping', 'Dull ache', 'Heavy bloating'];
+      } else if (!currentSocrates.radiation) {
+        aiQuestion = 'Does the pain move to your back, chest, or shoulder?';
+        options = ['Moves to back', 'Moves to chest/shoulder', 'Stays in stomach', 'No radiation'];
+      } else if (!currentSocrates.associatedSymptoms) {
+        aiQuestion = 'Do you have vomiting, fever, nausea, or any other symptoms?';
+        options = ['I feel nauseous', 'Vomiting & nausea', 'Fever & chills', 'Acidity & Reflux', 'No other symptoms'];
+      } else if (!currentSocrates.triggers) {
+        aiQuestion = 'What makes it worse or better?';
+        options = ['Gets worse after eating', 'Worse with movement', 'Better with water/rest', 'No specific trigger'];
+      } else if (!currentSocrates.severity) {
+        aiQuestion = 'On a scale of 1–10, how severe is it?';
+        options = ['Mild (1-3)', 'Moderate (4-6)', 'Severe (7-9)', 'Emergency (10)'];
       } else {
-        aiQuestion = `When did this discomfort start, and is it constant or coming in waves?`;
-        options = ['Started today', 'Constant continuous pain', 'Comes and goes in waves', 'Worse with movement'];
+        isComplete = true;
       }
-    } else if (turnCount === 3) {
-      if (isKidney) {
-        aiQuestion = `Do you have any burning during urination, fever, or change in urine color?`;
-        options = ['Burning during urination', 'Dark or cloudy urine', 'High fever & chills', 'None of these'];
-      } else if (isVomiting) {
-        aiQuestion = `Are you able to drink water or keep liquids down right now?`;
-        options = ['Yes, can drink water', 'Unable to keep liquids down', 'Feeling very weak', 'Slightly dehydrated'];
-      } else if (isChest) {
-        aiQuestion = `Does the breathing or pain get worse when lying down or taking a deep breath?`;
-        options = ['Worse when lying flat', 'Worse on deep breath', 'Worse with exertion', 'No change with position'];
-      } else if (isHead) {
-        aiQuestion = `Have you taken any medication for this (like Paracetamol), and did it help?`;
-        options = ['Took Paracetamol - helped', 'Took medicine - no relief', 'Have not taken medication', 'Not sure'];
+    } else if (isRash) {
+      if (!currentSocrates.site) {
+        aiQuestion = 'Where on your skin is the rash located?';
+        options = ['Arms & legs', 'Face & neck', 'Chest & back', 'All over body'];
+      } else if (!currentSocrates.onset) {
+        aiQuestion = 'When did the rash start appearing?';
+        options = ['Today', 'Yesterday', '2-3 days ago', 'More than a week ago'];
+      } else if (!currentSocrates.character) {
+        aiQuestion = 'What does the rash look or feel like — itchy red spots, blisters, or dry patches?';
+        options = ['Itchy red spots', 'Fluid blisters', 'Dry scaly patches', 'Raised hives / swelling'];
+      } else if (!currentSocrates.radiation) {
+        aiQuestion = 'Is the rash spreading to other parts of your body?';
+        options = ['Spreading rapidly', 'Spreading slowly', 'Confined to one area', 'No spreading'];
+      } else if (!currentSocrates.associatedSymptoms) {
+        aiQuestion = 'Do you have itching, fever, or swelling?';
+        options = ['Intense itching', 'Fever & body ache', 'Facial / Lip swelling', 'No other symptoms'];
+      } else if (!currentSocrates.triggers) {
+        aiQuestion = 'Have you had exposure to new medications, soaps, foods, or outdoors?';
+        options = ['New medication', 'New soap / cosmetics', 'Outdoor / insect exposure', 'Unknown trigger'];
+      } else if (!currentSocrates.severity) {
+        aiQuestion = 'On a scale of 1–10, how severe is the rash or itching?';
+        options = ['Mild (1-3)', 'Moderate (4-6)', 'Severe (7-10)'];
       } else {
-        aiQuestion = `Are you experiencing any other symptoms along with this in your body?`;
-        options = ['Fever / Chills', 'Fatigue / Weakness', 'Nausea / Loss of appetite', 'No other symptoms'];
+        isComplete = true;
       }
-    } else if (turnCount === 4) {
-      if (isKidney) {
-        aiQuestion = `Have you had any previous history of Kidney Stones, Urinary Infection, or High BP?`;
-        options = ['History of Kidney Stones', 'Recurrent Urinary Infection', 'High Blood Pressure', 'No past history'];
+    } else if (isHead) {
+      if (!currentSocrates.site) {
+        aiQuestion = 'Where in your head is the pain located?';
+        options = ['Forehead & temples', 'One side of head', 'Back of head / neck', 'Behind eyes'];
+      } else if (!currentSocrates.onset) {
+        aiQuestion = 'When and how did the headache start?';
+        options = ['Suddenly today', 'Gradual buildup', 'After waking up', 'Last 2-3 days'];
+      } else if (!currentSocrates.character) {
+        aiQuestion = 'What does the headache feel like — throbbing, heavy pressure, or sharp stabbing?';
+        options = ['Throbbing / Pulsating', 'Heavy pressure', 'Sharp stabbing', 'Dull constant ache'];
+      } else if (!currentSocrates.radiation) {
+        aiQuestion = 'Does the headache move or radiate to your neck or shoulders?';
+        options = ['Radiates to neck stiffness', 'Radiates to shoulder', 'Radiates behind eye', 'No radiation'];
+      } else if (!currentSocrates.associatedSymptoms) {
+        aiQuestion = 'Do you have nausea, visual changes, dizziness, or light sensitivity?';
+        options = ['Nausea & vomiting', 'Dizziness & lightheadedness', 'Sensitivity to light/sound', 'No other symptoms'];
+      } else if (!currentSocrates.triggers) {
+        aiQuestion = 'What makes the headache worse or better?';
+        options = ['Worse with bright light/noise', 'Worse with movement', 'Better with rest in dark room', 'No specific trigger'];
+      } else if (!currentSocrates.severity) {
+        aiQuestion = 'On a scale of 1–10, how severe is the headache?';
+        options = ['Mild (1-3)', 'Moderate (4-6)', 'Severe (7-9)', 'Worst headache of life (10)'];
       } else {
-        aiQuestion = `Do you have any past medical history (such as Diabetes, BP, or Allergies) related to this?`;
-        options = ['High Blood Pressure', 'Diabetes', 'Acidity / Ulcer history', 'No past medical history'];
+        isComplete = true;
       }
-      isComplete = true;
     } else {
-      aiQuestion = `Thank you. Full clinical history recorded for the doctor.`;
-      options = ['Assessment Complete'];
+      if (!currentSocrates.site) {
+        aiQuestion = `Where exactly is the pain or problem in your ${regionName || 'body'}?`;
+        options = ['Specific local area', 'Spreading area', 'Joint / Muscle', 'Deep discomfort'];
+      } else if (!currentSocrates.onset) {
+        aiQuestion = 'When did your symptoms start?';
+        options = ['Today', 'Yesterday', '2-3 days ago', 'More than a week ago'];
+      } else if (!currentSocrates.character) {
+        aiQuestion = 'What does it feel like — sharp, dull ache, burning, or stiffness?';
+        options = ['Sharp pain', 'Dull ache', 'Burning sensation', 'Stiffness & swelling'];
+      } else if (!currentSocrates.radiation) {
+        aiQuestion = 'Does the pain move anywhere else in your body?';
+        options = ['Spreads to adjacent area', 'Moves to back', 'Stays in one spot', 'No radiation'];
+      } else if (!currentSocrates.associatedSymptoms) {
+        aiQuestion = 'Are you experiencing any other symptoms like fever, nausea, or fatigue?';
+        options = ['Fever & chills', 'Nausea / Loss of appetite', 'Fatigue / Weakness', 'No other symptoms'];
+      } else if (!currentSocrates.triggers) {
+        aiQuestion = 'What makes it worse or better?';
+        options = ['Worse with movement', 'Worse with pressure', 'Better with rest', 'No specific trigger'];
+      } else if (!currentSocrates.severity) {
+        aiQuestion = 'On a scale of 1–10, how severe is it?';
+        options = ['Mild (1-3)', 'Moderate (4-6)', 'Severe (7-10)'];
+      } else {
+        isComplete = true;
+      }
+    }
+
+    if (turnCount >= 7 || triage === 'RED') {
       isComplete = true;
     }
+
+    if (isComplete) {
+      aiQuestion = 'Thank you. SOCRATES clinical intake summary recorded for the treating doctor.';
+      options = ['Assessment Complete'];
+    }
+
+    const preConsultationSummary = {
+      primaryComplaint: `${currentSocrates.site || regionName || 'Chief Complaint'} Discomfort`,
+      socrates: {
+        site: currentSocrates.site || 'Reported area',
+        onset: currentSocrates.onset || 'Recent',
+        character: currentSocrates.character || 'Pain / Discomfort',
+        radiation: currentSocrates.radiation || 'None reported',
+        associatedSymptoms: currentSocrates.associatedSymptoms || 'None reported',
+        triggers: currentSocrates.triggers || 'None reported',
+        severity: currentSocrates.severity || 'Moderate',
+      },
+    };
 
     return res.json({
       success: true,
@@ -1012,6 +1282,9 @@ router.post('/converse-turn', async (req: Request, res: Response) => {
         isComplete,
         triage,
         redFlag,
+        redFlagsDetected,
+        socratesState: currentSocrates,
+        preConsultationSummary,
       },
     });
   } catch (err: any) {

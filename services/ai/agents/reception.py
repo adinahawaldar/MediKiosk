@@ -237,6 +237,7 @@ def check_duplicate_patients(payload: DuplicateCheckRequest):
                 "Each object MUST have: 'hospitalId', 'firstName', 'lastName', 'phone', 'dateOfBirth', 'confidence', 'reasons'. "
                 "Do NOT output markdown blocks (like ```json). Respond with pure JSON."
             )
+            candidates_str = "\n".join(candidates_formatted)
             user_prompt = (
                 "New Patient:\n"
                 f"Name: {payload.newPatient.firstName} {payload.newPatient.lastName}\n"
@@ -245,7 +246,7 @@ def check_duplicate_patients(payload: DuplicateCheckRequest):
                 f"Gender: {payload.newPatient.gender}\n"
                 f"Address: {payload.newPatient.address or 'None'}\n\n"
                 "Candidate Patients:\n"
-                f"{'\n'.join(candidates_formatted)}\n\n"
+                f"{candidates_str}\n\n"
                 "Provide your analysis."
             )
             content = call_llm(system_prompt, user_prompt, temperature=0.1)

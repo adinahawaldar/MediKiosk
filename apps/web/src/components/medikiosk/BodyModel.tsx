@@ -14,6 +14,7 @@ export interface MappedSymptom {
     description?: string;
     socrates?: Record<string, string>;
     ayush?: Record<string, string>;
+    socrates?: Record<string, any>;
   };
 }
 

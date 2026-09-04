@@ -1,6 +1,6 @@
 /**
- * Doctor Clinical Summary Report PDF & Print Generator
- * Formats patient intake data into the AMPATH Guide Clinical Summary layout
+ * Aethera Clinical Summary PDF Generator
+ * Formats patient intake data into the clean layout matching the reference Aethera design template
  */
 
 export interface PatientSummaryData {
@@ -31,6 +31,7 @@ export interface PatientSummaryData {
   triage?: { level: string; priority: string; reason: string };
   chiefComplaint?: string;
   socrates?: Array<{ label: string; value: string }>;
+  symptoms?: string[];
   allergies?: string[];
   prescriptions?: Array<{ medications: string[]; instructions: string; status: string; version?: number }>;
   ocrDocuments?: Array<{ fileName: string; documentType: string; summary: string; abnormalLabFlags?: string[] }>;
@@ -57,11 +58,11 @@ export const DEFAULT_STATIC_SUMMARY_DATA: PatientSummaryData = {
   ],
   arvTreatmentBefore: 'Yes None Or Not Indicated',
   initialArvRegimen: '03/09/2003 Lamivudine Stavudine Nevirapine',
-  currentArvRegimen: 'Lamivudine Stavudine Nevirapine',
+  currentArvRegimen: 'Lamivudine, Stavudine, Nevirapine',
   antiTbDrugs: 'None',
-  currentOiRegimen: '05/05/2004 Cotrimoxazole',
+  currentOiRegimen: 'Cotrimoxazole',
   otherDrugsLastVisit: 'None',
-  adherence: 'Perfect',
+  adherence: 'perfect',
   vitalsAndLabs: [
     {
       param: 'WEIGHT',
@@ -133,54 +134,20 @@ const escapeHtml = (value: unknown): string => String(value ?? 'Not recorded')
   .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 
 /**
- * Generates exact printable HTML matching the AMPATH Guide Adult Summary layout
+ * Generates ultra-clean printable HTML matching the Aethera Clinical Summary design template
  */
 export const generateSummaryHTMLString = (data: PatientSummaryData = DEFAULT_STATIC_SUMMARY_DATA): string => {
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>AMPATH Guide Adult Summary - ${data.patientName}</title>
-  <style>
-    @page { size: A4 portrait; margin: 12mm 15mm 12mm 15mm; }
-    body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #000; background: #fff; margin: 0; padding: 20px; line-height: 1.3; }
-    @media print { body { padding: 0; } .no-print { display: none !important; } }
-    .no-print { background: #1e293b; color: #fff; padding: 12px 20px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-    .no-print button { background: #2563eb; color: #fff; border: none; padding: 8px 16px; font-weight: bold; border-radius: 6px; cursor: pointer; }
-    .doc-header { text-align: center; font-size: 16px; font-weight: bold; text-decoration: underline; margin-bottom: 12px; }
-    .section-title { font-size: 12px; font-weight: bold; text-decoration: underline; margin-top: 14px; margin-bottom: 6px; }
-    .meta-grid { display: grid; grid-template-columns: 1.5fr 1.2fr 1fr; row-gap: 4px; column-gap: 12px; margin-bottom: 10px; }
-    .field-label { font-weight: bold; }
-    .field-val { text-decoration: underline; font-weight: bold; }
-    .history-table { width: 100%; margin-bottom: 10px; border-collapse: collapse; }
-    .history-table td { padding: 2px 0; font-weight: bold; font-size: 10.5px; }
-    .drug-grid { display: grid; grid-template-columns: 1fr 1fr; row-gap: 8px; column-gap: 20px; margin-bottom: 14px; }
-    .drug-q { font-weight: bold; margin-bottom: 2px; }
-    .drug-ans { font-weight: bold; padding-left: 20px; }
-    .results-table { width: 100%; border-collapse: collapse; border: 2px solid #000; margin-top: 14px; margin-bottom: 14px; }
-    .results-table th, .results-table td { border: 1px solid #000; padding: 4px 8px; text-align: center; font-size: 10px; }
-    .results-table th { font-weight: bold; font-size: 11px; }
-    .results-table td.param-name { text-align: left; font-weight: bold; width: 150px; }
-    .reminders-box { margin-top: 12px; padding-top: 8px; border-top: 1px dashed #000; }
-    .reminders-title { font-weight: bold; text-decoration: underline; margin-bottom: 4px; }
-    .reminders-list { margin: 0; padding-left: 18px; font-size: 10.5px; }
-    .reminders-list li { margin-bottom: 3px; }
-    .doctor-signoff { margin-top: 25px; display: flex; justify-content: space-between; align-items: flex-end; font-size: 10px; font-weight: bold; }
-    .sign-line { border-top: 1px solid #000; width: 200px; text-align: center; padding-top: 4px; }
-  </style>
-</head>
-<body>
-  <div class="no-print">
-    <div>
-      <h2 style="margin:0;font-size:14px;">Doctor Clinical Summary PDF Generator</h2>
-      <span style="font-size:11px;color:#94a3b8;">AMPATH Guide Layout Format — Static Patient Intake Preview</span>
-    </div>
-    <button onclick="window.print()">🖨️ Save as PDF / Print</button>
-  </div>
+  const getSocratesVal = (key: string): string => {
+    if (!data.socrates) return '';
+    const item = data.socrates.find(s => s.label.toLowerCase().includes(key.toLowerCase()));
+    return item ? item.value : '';
+  };
 
-  <div class="doc-header">
-    AMPATH Guide Adult Summary as of: ${data.summaryDate}
-  </div>
+  const mainConcern = escapeHtml(data.chiefComplaint || getSocratesVal('site') || 'Fever');
+  const symptomsVal = escapeHtml(getSocratesVal('associated') || getSocratesVal('symptom') || (data.symptoms || []).join(' ') || 'Headache Body ache');
+  const durationVal = escapeHtml(getSocratesVal('duration') || getSocratesVal('onset') || '2 days');
+  const severityVal = escapeHtml(getSocratesVal('severity') || 'Moderate');
+  const onsetVal = escapeHtml(getSocratesVal('onset') || getSocratesVal('character') || 'Gradual');
 
   <div class="section-title">Personal History:</div>
   <div class="meta-grid">
@@ -212,119 +179,247 @@ export const generateSummaryHTMLString = (data: PatientSummaryData = DEFAULT_STA
       )
       .join('')}
   </table>
+  const medicalHistoryRows = (data.medicalHistory && data.medicalHistory.length > 0)
+    ? data.medicalHistory.map(item => `
+        <div style="margin-bottom: 5px; font-weight: bold; font-size: 8.5pt; display: flex; justify-content: space-between; max-width: 440pt;">
+          <span>${escapeHtml(item.condition.toUpperCase())}</span>
+          <span>${escapeHtml(item.date)}</span>
+        </div>
+      `).join('')
+    : `<div style="font-size: 8pt; font-style: italic;">NO PRIOR MEDICAL HISTORY RECORDED</div>`;
 
-  <div class="section-title">Drug History</div>
-  <div class="drug-grid">
-    <div>
-      <div class="drug-q">ARV treatment before AMPATH?</div>
-      <div class="drug-ans">${data.arvTreatmentBefore}</div>
-    </div>
-    <div>
-      <div class="drug-q">Initial AMPATH ARV regimen?</div>
-      <div class="drug-ans">${data.initialArvRegimen}</div>
-    </div>
+  const isRed = data.triage?.level === 'RED';
+  const isAmber = data.triage?.level === 'AMBER';
 
-    <div>
-      <div class="drug-q">Current AMPATH ARV regimen?</div>
-      <div class="drug-ans">${data.currentArvRegimen}</div>
-    </div>
-    <div>
-      <div class="drug-q">Anti TB Drugs?</div>
-      <div class="drug-ans">${data.antiTbDrugs}</div>
-    </div>
+  const riskRowsHtml = `
+    <tr style="border-bottom: 1px solid #000000; height: 16pt;">
+      <td style="width: 130pt; padding: 2px 6px; border-right: 1px solid #000000;">Chest pain</td>
+      <td style="width: 150pt; padding: 2px 6px;">${isRed ? 'high' : 'normal'}</td>
+    </tr>
+    <tr style="border-bottom: 1px solid #000000; height: 16pt;">
+      <td style="padding: 2px 6px; border-right: 1px solid #000000;">Discomfort</td>
+      <td style="padding: 2px 6px;">${isAmber ? 'Moderate' : isRed ? 'high' : 'normal'}</td>
+    </tr>
+    <tr style="height: 16pt;">
+      <td style="padding: 2px 6px; border-right: 1px solid #000000;">Shortness of breath</td>
+      <td style="padding: 2px 6px;">${isRed ? 'high' : 'normal'}</td>
+    </tr>
+  `;
 
-    <div>
-      <div class="drug-q">Current AMPATH OI regimen?</div>
-      <div class="drug-ans">${data.currentOiRegimen}</div>
-    </div>
-    <div>
-      <div class="drug-q">Other drugs prescribed on last visit?</div>
-      <div class="drug-ans">${data.otherDrugsLastVisit}</div>
-    </div>
+  const vitalsRows = (data.vitalsAndLabs || []).map((row, idx) => {
+    const isLast = idx === (data.vitalsAndLabs.length - 1);
+    const borderBottomStyle = isLast ? 'border-bottom: 1.5px solid #000000;' : 'border-bottom: 1px solid #000000;';
 
-    <div>&nbsp;</div>
-    <div>
-      <div class="drug-q">Adherence Perfect [Last Visit]?: &nbsp;&nbsp;&nbsp;<u>${data.adherence}</u></div>
-    </div>
-  </div>
+    const l1Date = row.lastThree?.[0]?.date || '';
+    const l1Val = row.lastThree?.[0]?.value || '-';
+    const l2Date = row.lastThree?.[1]?.date || '';
+    const l2Val = row.lastThree?.[1]?.value || '-';
+    const l3Date = row.lastThree?.[2]?.date || '';
+    const l3Val = row.lastThree?.[2]?.value || '-';
 
-  <table class="results-table">
-    <thead>
-      <tr>
-        <th class="param-name">&nbsp;</th>
-        <th style="width:120px;">Initial Result</th>
-        <th colspan="3">Last Three Results</th>
+    return `
+      <tr style="${borderBottomStyle} height: 25pt;">
+        <td style="width: 125pt; padding: 6px 8px; font-weight: bold; border-right: 1px solid #000000; font-size: 7.5pt;">${escapeHtml(row.param)}</td>
+        <td style="width: 102pt; padding: 2px 4px; text-align: center; border-right: 1px solid #000000; font-size: 7.5pt;">
+          <div style="font-size: 7pt; color: #000;">${escapeHtml(row.initial.date)}</div>
+          <div style="font-weight: bold;">${escapeHtml(row.initial.value)}</div>
+        </td>
+        <td style="width: 93pt; padding: 2px 4px; text-align: center; border-right: 1px solid #000000; font-size: 7.5pt;">
+          ${l1Date ? `<div style="font-size: 7pt;">${escapeHtml(l1Date)}</div>` : ''}
+          <div style="font-weight: bold;">${escapeHtml(l1Val)}</div>
+        </td>
+        <td style="width: 93pt; padding: 2px 4px; text-align: center; border-right: 1px solid #000000; font-size: 7.5pt;">
+          ${l2Date ? `<div style="font-size: 7pt;">${escapeHtml(l2Date)}</div>` : ''}
+          <div style="font-weight: bold;">${escapeHtml(l2Val)}</div>
+        </td>
+        <td style="width: 93pt; padding: 2px 4px; text-align: center; font-size: 7.5pt;">
+          ${l3Date ? `<div style="font-size: 7pt;">${escapeHtml(l3Date)}</div>` : ''}
+          <div style="font-weight: bold;">${escapeHtml(l3Val)}</div>
+        </td>
       </tr>
-    </thead>
-    <tbody>
-      ${data.vitalsAndLabs
-        .map(row => {
-          const l1 = row.lastThree[0] ? `${row.lastThree[0].date}<br><b>${row.lastThree[0].value}</b>` : '-';
-          const l2 = row.lastThree[1] ? `${row.lastThree[1].date}<br><b>${row.lastThree[1].value}</b>` : '-';
-          const l3 = row.lastThree[2] ? `${row.lastThree[2].date}<br><b>${row.lastThree[2].value}</b>` : '-';
-          return `
-          <tr>
-            <td class="param-name">${row.param}</td>
-            <td>${row.initial.date}<br><b>${row.initial.value}</b></td>
-            <td>${l1}</td>
-            <td>${l2}</td>
-            <td>${l3}</td>
-          </tr>`;
-        })
-        .join('')}
-    </tbody>
-  </table>
+    `;
+  }).join('\n');
+
+  const notesHtml = (data.clinicalNotes || []).map(note => `
+    <li style="margin-bottom: 4px; font-size: 7.5pt; color: #000000; line-height: 1.2;">${escapeHtml(note)}</li>
+  `).join('\n');
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Aethera Pre-Consultation Summary - ${escapeHtml(data.patientName)}</title>
+    <style>
+        @page { size: A4 portrait; margin: 12mm 15mm 12mm 15mm; }
+        body { font-family: 'Arial', sans-serif; font-size: 8.5pt; color: #000000; background: #ffffff; margin: 0; padding: 20px; line-height: 1.2; }
+        p { margin: 0; }
+        h1 { margin: 0; }
+        h2 { margin: 0; }
+        table td { vertical-align: top; }
+    </style>
+</head>
+<body>
+    <!-- Centered Aethera Header -->
+    <div style="text-align: center; margin-bottom: 16px;">
+        <div style="font-family: 'Arial', sans-serif; font-size: 20pt; font-weight: 400; letter-spacing: 7px; color: #000000; text-transform: uppercase;">
+            A E T H E R A
+        </div>
+        <div style="font-family: 'Arial', sans-serif; font-size: 7pt; color: #222222; letter-spacing: 0.5px; margin-top: 2px;">
+            More time for care, zero time on paperwork.
+        </div>
+        <div style="width: 160px; height: 1.5px; background-color: #000000; margin: 4px auto 0 auto;"></div>
+    </div>
+
+    <!-- Document Title -->
+    <h1 style="text-align: center; font-size: 12.5pt; font-weight: bold; text-decoration: underline; margin-bottom: 14px; font-family: 'Arial', sans-serif;">
+        PRE- CONSULTATION PATIENT SUMMARY
+    </h1>
+
+    <!-- Personal History Section -->
+    <h2 style="font-size: 9.5pt; font-weight: bold; text-decoration: underline; margin-top: 10px; margin-bottom: 4px; font-family: 'Arial', sans-serif;">
+        Personal History:
+    </h2>
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 8.5pt; font-family: 'Arial', sans-serif;">
+        <tr>
+            <td style="width: 38%; vertical-align: top;">
+                Name:<span style="font-weight: normal;">${escapeHtml(data.patientName)}</span><br>
+                <div style="margin-top: 3px;">Initial Visit: <span style="font-weight: bold; text-decoration: underline;">${escapeHtml(data.initialVisitDate)}</span></div>
+            </td>
+            <td style="width: 32%; vertical-align: top; text-align: center;">
+                Age: <span style="font-weight: bold; text-decoration: underline;">${escapeHtml(data.age)}</span>
+            </td>
+            <td style="width: 30%; vertical-align: top; text-align: right;">
+                ABHA ID: <span style="font-weight: bold; text-decoration: underline;">${escapeHtml(data.ampathId)}</span><br>
+                <div style="margin-top: 3px;">Marital Status: <span style="font-weight: bold; text-decoration: underline;">${escapeHtml(data.maritalStatus)}</span></div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Current Visit Section -->
+    <h2 style="font-size: 9.5pt; font-weight: bold; text-decoration: underline; margin-top: 10px; margin-bottom: 4px; font-family: 'Arial', sans-serif;">
+        Current Visit:
+    </h2>
+    <table style="width: 300pt; border-collapse: collapse; margin-bottom: 14px; border: 1px solid #000000; font-size: 8pt; font-family: 'Arial', sans-serif;">
+        <tr style="border-bottom: 1px solid #000000; height: 16pt;">
+            <td style="width: 126pt; padding: 2px 6px; font-weight: bold; border-right: 1px solid #000000;">Findings</td>
+            <td style="width: 174pt; padding: 2px 6px; font-weight: bold;">Details</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #000000; height: 16pt;">
+            <td style="padding: 2px 6px; font-weight: bold; border-right: 1px solid #000000;">Main concern</td>
+            <td style="padding: 2px 6px;">${mainConcern}</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #000000; height: 16pt;">
+            <td style="padding: 2px 6px; font-weight: bold; text-decoration: underline; border-right: 1px solid #000000;">Symtoms</td>
+            <td style="padding: 2px 6px;">${symptomsVal}</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #000000; height: 16pt;">
+            <td style="padding: 2px 6px; font-weight: bold; border-right: 1px solid #000000;">Duration</td>
+            <td style="padding: 2px 6px;">${durationVal}</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #000000; height: 16pt;">
+            <td style="padding: 2px 6px; font-weight: bold; border-right: 1px solid #000000;">Severity</td>
+            <td style="padding: 2px 6px;">${severityVal}</td>
+        </tr>
+        <tr style="height: 16pt;">
+            <td style="padding: 2px 6px; font-weight: bold; border-right: 1px solid #000000;">Onset</td>
+            <td style="padding: 2px 6px;">${onsetVal}</td>
+        </tr>
+    </table>
+
+    <!-- Medical History Section -->
+    <h2 style="font-size: 9.5pt; font-weight: bold; text-decoration: underline; margin-top: 10px; margin-bottom: 6px; font-family: 'Arial', sans-serif;">
+        Medical History:
+    </h2>
+    <div style="margin-bottom: 14px;">
+        ${medicalHistoryRows}
+    </div>
+
+    <!-- Current Medications Section -->
+    <h2 style="font-size: 9.5pt; font-weight: bold; text-decoration: underline; margin-top: 10px; margin-bottom: 4px; font-family: 'Arial', sans-serif;">
+        Current Medications:
+    </h2>
+    <table style="width: 300pt; border-collapse: collapse; margin-bottom: 14px; border: 1px solid #000000; font-size: 8pt; font-family: 'Arial', sans-serif;">
+        <tr style="border-bottom: 1px solid #000000; height: 16pt;">
+            <td style="width: 126pt; padding: 2px 6px; font-weight: bold; border-right: 1px solid #000000;">Medication Information</td>
+            <td style="width: 174pt; padding: 2px 6px; font-weight: bold;">Details</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #000000; height: 16pt;">
+            <td style="padding: 2px 6px; border-right: 1px solid #000000;">Current AVR</td>
+            <td style="padding: 2px 6px;">${escapeHtml(data.currentArvRegimen || 'None')}</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #000000; height: 16pt;">
+            <td style="padding: 2px 6px; border-right: 1px solid #000000;">OL Treatment</td>
+            <td style="padding: 2px 6px;">${escapeHtml(data.currentOiRegimen || 'None')}</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #000000; height: 16pt;">
+            <td style="padding: 2px 6px; border-right: 1px solid #000000;">Drugs</td>
+            <td style="padding: 2px 6px;">${escapeHtml(data.otherDrugsLastVisit || 'None')}</td>
+        </tr>
+        <tr style="height: 16pt;">
+            <td style="padding: 2px 6px; border-right: 1px solid #000000;">Last visit adherence</td>
+            <td style="padding: 2px 6px;">${escapeHtml(data.adherence || 'perfect')}</td>
+        </tr>
+    </table>
 
   <div class="reminders-box">
     <div class="reminders-title">Clinical Reminders & AI Pre-Consultation Notes:</div>
     <ol class="reminders-list">
       ${data.clinicalNotes.map(n => `<li>${escapeHtml(n)}</li>`).join('')}
+    <!-- Risk / Red Flags Section -->
+    <h2 style="font-size: 9.5pt; font-weight: bold; text-decoration: underline; margin-top: 10px; margin-bottom: 4px; font-family: 'Arial', sans-serif;">
+        Risk/Red Flags:
+    </h2>
+    <table style="width: 280pt; border-collapse: collapse; margin-bottom: 14px; border: 1px solid #000000; font-size: 8pt; font-family: 'Arial', sans-serif;">
+        ${riskRowsHtml}
+    </table>
+
+    <!-- Vitals Results Table -->
+    <table style="width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 14px; border: 1.5px solid #000000; font-size: 7.5pt; font-family: 'Arial', sans-serif;">
+        <tr style="border-bottom: 1.5px solid #000000; height: 18pt;">
+            <td style="width: 125pt; border-right: 1px solid #000000; border-bottom: 1px solid #000000;"></td>
+            <td style="width: 102pt; padding: 2px 4px; font-weight: bold; border-right: 1px solid #000000; border-bottom: 1px solid #000000; text-align: center;">Initial Result</td>
+            <td style="padding: 2px 4px; font-weight: bold; text-align: center; border-bottom: 1px solid #000000;" colspan="3">Last Three Results</td>
+        </tr>
+        ${vitalsRows}
+    </table>
+
+    <!-- Clinical Reminders & AI Pre-Consultation Notes Section -->
+    <h2 style="font-size: 9.5pt; font-weight: bold; text-decoration: underline; margin-top: 12px; margin-bottom: 4px; font-family: 'Arial', sans-serif;">
+        Clinical Reminders & AI Pre-Consultation Notes:
+    </h2>
+    <ol style="margin: 0; padding-left: 20px; font-size: 7.5pt; font-family: 'Arial', sans-serif;">
+        ${notesHtml}
     </ol>
 
-    <div class="doctor-signoff">
-      <div>Generated: ${data.summaryDate} | System: HospitalOS MediKiosk</div>
-      <div class="sign-line">Treating Physician Signature / Stamp</div>
+    <!-- Footer Date & Signature -->
+    <div style="margin-top: 24px; font-size: 7.5pt; font-family: 'Arial', sans-serif; font-weight: bold; display: flex; justify-content: space-between; align-items: center;">
+        <div>Generated: ${escapeHtml(data.summaryDate)}</div>
+        <div>Treating Physician Signature / Stamp ________________________</div>
     </div>
-  </div>
 </body>
 </html>`;
 };
 
 /**
- * Triggers PDF print window immediately
+ * Directly downloads the Doctor Clinical Summary PDF
  */
 export const openDoctorSummaryPdfWindow = (data: PatientSummaryData = DEFAULT_STATIC_SUMMARY_DATA) => {
-  const htmlContent = generateSummaryHTMLString(data);
-  const printWindow = window.open('', '_blank', 'width=900,height=1000');
-  if (printWindow) {
-    printWindow.document.open();
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-    }, 500);
-  } else {
-    // Fallback if popup blocker is enabled: redirect to static file
-    window.open('/doctor_clinical_summary.html', '_blank');
-  }
+  return downloadDoctorSummaryPdfDirect(data);
 };
 
 /**
- * Opens docgenerator.html directly in a new browser window/tab
+ * Opens Doctor summary template preview in new browser tab
  */
 export const openDocGeneratorHtmlWindow = (_data: PatientSummaryData = DEFAULT_STATIC_SUMMARY_DATA) => {
-  window.open('/docgenerator.html', '_blank');
+  window.open('/assets/Doctor_Clinical_Summary_00366.html', '_blank');
 };
 
 /**
- * Direct Client-Side PDF Download (Amira Law PDF Generator pattern)
- * Opens /docgenerator.html?autodownload=true in hidden iframe or direct popup to trigger immediate PDF export
+ * Direct PDF Download via Puppeteer Backend Endpoint
  */
 export const downloadDoctorSummaryPdfDirect = async (
   data: PatientSummaryData = DEFAULT_STATIC_SUMMARY_DATA
 ): Promise<void> => {
-  // First try backend Puppeteer service
   try {
     const htmlContent = generateSummaryHTMLString(data);
     const res = await fetch('/api/v1/medikiosk/generate-pdf', {
@@ -335,26 +430,45 @@ export const downloadDoctorSummaryPdfDirect = async (
 
     if (res.ok) {
       const pdfBlob = await res.blob();
+      const cleanId = (data.ampathId || '00366').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const fileName = `Aethera_Clinical_Summary_${cleanId}.pdf`;
       const url = URL.createObjectURL(pdfBlob);
+
+      // 1. Direct Anchor Download
       const link = document.createElement('a');
       link.href = url;
-      link.download = `Doctor_Clinical_Summary_${data.ampathId || '00366'}.pdf`;
+      link.download = fileName;
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      return;
-    }
-  } catch (err) {
-    console.warn('Backend PDF endpoint unavailable, falling back to frontend docgenerator.html:', err);
-  }
 
-  // Frontend Fallback: Trigger direct PDF download via /docgenerator.html
-  window.open('/docgenerator.html?autodownload=true', '_blank');
+      // 2. Open PDF preview in new window/tab as secondary download trigger
+      const newWin = window.open(url, '_blank');
+      if (!newWin && !document.hidden) {
+        // Fallback to window navigation if popup is blocked
+        const fallbackWin = window.open();
+        if (fallbackWin) {
+          fallbackWin.location.href = url;
+        }
+      }
+
+      setTimeout(() => {
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+      }, 5000);
+      return;
+    } else {
+      const errBody = await res.json().catch(() => ({}));
+      console.error('PDF generation endpoint failed:', res.status, errBody);
+      alert(`PDF generation failed: ${errBody.error || 'Server error generating PDF'}`);
+    }
+  } catch (err: any) {
+    console.error('Backend PDF generation request error:', err);
+    alert(`Could not download PDF: ${err.message || 'Network error'}`);
+  }
 };
 
 /**
- * Uses Express backend Puppeteer service or falls back to client-side docgenerator.html
+ * Uses Express backend Puppeteer service to download Aethera Clinical Summary PDF directly
  */
 export const downloadDoctorSummaryPdfWithPuppeteer = downloadDoctorSummaryPdfDirect;
-

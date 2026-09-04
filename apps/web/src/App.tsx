@@ -11,33 +11,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col items-center w-full">
-      {/* Universal Top Switcher */}
-      <nav className="w-full bg-slate-900 text-white py-2.5 px-6 flex justify-between items-center shadow-md">
-        <div className="flex items-center space-x-2 font-black tracking-widest text-xs uppercase">
-          <span>🏥</span>
-          <span>HospitalOS MediKiosk</span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <button
-            type="button"
-            onClick={() => setScreen('welcome')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${
-              screen !== 'doctor' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-300 hover:text-white'
-            }`}
-          >
-            Patient Kiosk
-          </button>
-          <button
-            type="button"
-            onClick={() => setScreen('doctor')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${
-              screen === 'doctor' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-300 hover:text-white'
-            }`}
-          >
-            🩺 Doctor OPD Portal
-          </button>
-        </div>
-      </nav>
 
       <main className="flex-1 w-full flex flex-col items-center justify-center p-4">
         {screen === 'doctor' && (

@@ -77,7 +77,9 @@ export async function synthesizeSpeech(
         host: 'https://translate.google.com',
         timeout: 10000,
       });
-      const combinedBuffer = Buffer.concat(chunks.map((c: any) => Buffer.from(c.base64, 'base64')));
+      const combinedBuffer = Buffer.concat(
+        (chunks || []).map((c: any) => Buffer.from(typeof c === 'string' ? c : c?.base64 || '', 'base64'))
+      );
       return {
         audioBase64: combinedBuffer.toString('base64'),
         format: 'audio/mp3',
