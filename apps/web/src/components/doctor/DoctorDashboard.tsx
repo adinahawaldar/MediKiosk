@@ -534,7 +534,7 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
         <div className="lg:col-span-7 flex flex-col h-[720px]">
           {selectedConsultation ? (
             <div className="overflow-y-auto flex-1 pr-2 space-y-6 scrollbar-thin">
-              {/* Patient Banner with Summary PDF Access */}
+              {/* Patient Banner with Basic Details & Summary Option */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-4 border-b border-slate-200 gap-3">
                 <div>
                   <div className="flex items-center space-x-2">
@@ -554,9 +554,9 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
                   <button
                     type="button"
                     onClick={() => void openSummary(selectedConsultation)}
-                    className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer"
+                    className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer"
                   >
-                    <span>📄 View & Download AI Summary PDF</span>
+                    <span>📄 Open AI Summary Report</span>
                   </button>
                   <span className={`px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider border ${
                     selectedConsultation.priority === 'emergency'
@@ -568,6 +568,25 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
                     {selectedConsultation.priority} TRIAGE
                   </span>
                 </div>
+              </div>
+
+              {/* Open Summary Option Banner */}
+              <div className="p-4 bg-slate-900 text-white rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-300 block mb-0.5">
+                    Pre-Consultation Clinical Intake
+                  </span>
+                  <h4 className="text-xs font-bold text-white">
+                    SOCRATES Intake Report & Medical History Summary
+                  </h4>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void openSummary(selectedConsultation)}
+                  className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-900 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shadow-sm"
+                >
+                  📄 Open Summary Report
+                </button>
               </div>
 
               {/* Access to Past Medical Records & History Section */}
