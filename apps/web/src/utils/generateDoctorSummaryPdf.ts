@@ -28,6 +28,12 @@ export interface PatientSummaryData {
     lastThree: Array<{ date: string; value: string }>;
   }>;
   clinicalNotes: string[];
+  triage?: { level: string; priority: string; reason: string };
+  chiefComplaint?: string;
+  socrates?: Array<{ label: string; value: string }>;
+  allergies?: string[];
+  prescriptions?: Array<{ medications: string[]; instructions: string; status: string; version?: number }>;
+  ocrDocuments?: Array<{ fileName: string; documentType: string; summary: string; abnormalLabFlags?: string[] }>;
 }
 
 export const DEFAULT_STATIC_SUMMARY_DATA: PatientSummaryData = {
@@ -120,6 +126,10 @@ export const DEFAULT_STATIC_SUMMARY_DATA: PatientSummaryData = {
   ],
 };
 
+const escapeHtml = (value: unknown): string => String(value ?? 'Not recorded')
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+
 /**
  * Generates exact printable HTML matching the AMPATH Guide Adult Summary layout
  */
@@ -187,6 +197,16 @@ export const generateSummaryHTMLString = (data: PatientSummaryData = DEFAULT_STA
       Number Of Children: <span class="field-val">${data.numChildren}</span>
     </div>
   </div>
+
+  ${data.triage ? `<div style="border:2px solid ${data.triage.level === 'RED' ? '#b91c1c' : data.triage.level === 'AMBER' ? '#b45309' : '#047857'}; padding:7px; margin:8px 0; font-weight:bold;">
+    TRIAGE: ${escapeHtml(data.triage.level)} (${escapeHtml(data.triage.priority)}) - ${escapeHtml(data.triage.reason)}
+  </div>` : ''}
+
+  ${data.chiefComplaint ? `<div class="section-title">Current Visit & SOCRATES:</div>
+  <div style="margin-bottom:8px;"><b>Chief Complaint:</b> ${escapeHtml(data.chiefComplaint)}<br>
+  ${(data.socrates || []).map(item => `<b>${escapeHtml(item.label)}:</b> ${escapeHtml(item.value)}`).join('<br>')}</div>` : ''}
+
+  ${data.allergies?.length ? `<div class="section-title">Allergies:</div><div style="margin-bottom:8px;"><b>${data.allergies.map(escapeHtml).join(', ')}</b></div>` : ''}
 
   <div class="section-title">Medical History:</div>
   <table class="history-table">
@@ -262,6 +282,14 @@ export const generateSummaryHTMLString = (data: PatientSummaryData = DEFAULT_STA
         .join('')}
     </tbody>
   </table>
+
+  ${data.prescriptions?.length ? `<div class="section-title">Existing Prescriptions:</div>
+  <table class="results-table"><thead><tr><th>Version</th><th>Medication(s)</th><th>Instructions</th><th>Status</th></tr></thead><tbody>
+  ${data.prescriptions.map(p => `<tr><td>${escapeHtml(p.version || 1)}</td><td>${p.medications.map(escapeHtml).join('<br>')}</td><td>${escapeHtml(p.instructions)}</td><td>${escapeHtml(p.status)}</td></tr>`).join('')}
+  </tbody></table>` : ''}
+
+  ${data.ocrDocuments?.length ? `<div class="section-title">Scanned Records (OCR Drafts):</div>
+  <div style="margin-bottom:8px;">${data.ocrDocuments.map(doc => `<b>${escapeHtml(doc.documentType)} - ${escapeHtml(doc.fileName)}:</b> ${escapeHtml(doc.summary)}${doc.abnormalLabFlags?.length ? `<br><b>Flags:</b> ${doc.abnormalLabFlags.map(escapeHtml).join('; ')}` : ''}`).join('<br>')}</div>` : ''}
 
   <div class="reminders-box">
     <div class="reminders-title">Clinical Reminders & AI Pre-Consultation Notes:</div>

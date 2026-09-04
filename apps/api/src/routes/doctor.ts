@@ -1,9 +1,108 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
+import { z } from 'zod';
 import { Consultation } from '../models/Consultation.js';
 import { Doctor } from '../models/Doctor.js';
 import { Patient } from '../models/Patient.js';
+import { Prescription } from '../models/Prescription.js';
+import { PrescriptionVersion } from '../models/PrescriptionVersion.js';
+import { LabReport } from '../models/LabReport.js';
+import { MedicalDocument } from '../models/MedicalDocument.js';
 
 const router = Router();
+
+const objectIdParam = (id: string) => {
+  if (!/^[a-f\d]{24}$/i.test(id)) throw new Error('Invalid MongoDB id');
+  return id;
+};
+
+const prescriptionSchema = z.object({
+  consultationId: z.string().regex(/^[a-f\d]{24}$/i).optional(),
+  patientId: z.string().regex(/^[a-f\d]{24}$/i),
+  medications: z.array(z.string().trim().min(1)).min(1),
+  instructions: z.string().trim().min(1),
+  status: z.enum(['draft', 'active', 'completed']).default('draft'),
+  changedBy: z.string().trim().max(120).optional(),
+  changeReason: z.string().trim().max(500).optional(),
+});
+
+const prescriptionUpdateSchema = prescriptionSchema.partial().omit({ patientId: true, consultationId: true });
+
+/** GET /api/v1/doctor/consultations/:id/summary */
+router.get('/consultations/:id/summary', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = objectIdParam(req.params.id);
+    const consultation = await Consultation.findById(id).populate('patientId').populate('doctorId').exec();
+    if (!consultation) return res.status(404).json({ success: false, error: 'Consultation not found' });
+
+    const patientId = (consultation.patientId as any)._id || consultation.patientId;
+    const [prescriptions, prescriptionVersions, labReports, medicalDocuments, priorConsultations] = await Promise.all([
+      Prescription.find({ patientId }).sort({ updatedAt: -1 }).lean().exec(),
+      PrescriptionVersion.find({ patientId }).sort({ createdAt: -1 }).lean().exec(),
+      LabReport.find({ patientId }).sort({ createdAt: -1 }).limit(12).lean().exec(),
+      MedicalDocument.find({ patientId }).sort({ createdAt: -1 }).limit(12).lean().exec(),
+      Consultation.find({ patientId, _id: { $ne: consultation._id } }).sort({ createdAt: -1 }).limit(8).lean().exec(),
+    ]);
+
+    return res.json({ success: true, data: { consultation, prescriptions, prescriptionVersions, labReports, medicalDocuments, priorConsultations } });
+  } catch (error) { next(error); }
+});
+
+/** GET /api/v1/doctor/patients/:patientId/prescriptions */
+router.get('/patients/:patientId/prescriptions', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const patientId = objectIdParam(req.params.patientId);
+    const [prescriptions, versions] = await Promise.all([
+      Prescription.find({ patientId }).sort({ updatedAt: -1 }).lean().exec(),
+      PrescriptionVersion.find({ patientId }).sort({ createdAt: -1 }).lean().exec(),
+    ]);
+    return res.json({ success: true, data: { prescriptions, versions } });
+  } catch (error) { next(error); }
+});
+
+/** POST /api/v1/doctor/prescriptions */
+router.post('/prescriptions', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const parsed = prescriptionSchema.parse(req.body);
+    const prescription = await Prescription.create({ ...parsed, version: 1 });
+    return res.status(201).json({ success: true, data: prescription });
+  } catch (error) { next(error); }
+});
+
+/** PATCH /api/v1/doctor/prescriptions/:id - snapshot old content before editing */
+router.patch('/prescriptions/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = objectIdParam(req.params.id);
+    const updates = prescriptionUpdateSchema.parse(req.body);
+    const prescription = await Prescription.findById(id).exec();
+    if (!prescription) return res.status(404).json({ success: false, error: 'Prescription not found' });
+
+    await PrescriptionVersion.create({
+      prescriptionId: prescription._id,
+      consultationId: prescription.consultationId,
+      patientId: prescription.patientId,
+      version: prescription.version || 1,
+      medications: prescription.medications,
+      instructions: prescription.instructions,
+      status: prescription.status,
+      changedBy: updates.changedBy,
+      changeReason: updates.changeReason || 'Prescription edited by physician',
+    });
+
+    const { changedBy: _changedBy, changeReason: _changeReason, ...prescriptionFields } = updates;
+    Object.assign(prescription, prescriptionFields, { version: (prescription.version || 1) + 1 });
+    await prescription.save();
+    return res.json({ success: true, data: prescription });
+  } catch (error) { next(error); }
+});
+
+/** GET /api/v1/doctor/prescriptions/:id/versions */
+router.get('/prescriptions/:id/versions', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const prescriptionId = objectIdParam(req.params.id);
+    const versions = await PrescriptionVersion.find({ prescriptionId }).sort({ version: -1 }).lean().exec();
+    return res.json({ success: true, data: versions });
+  } catch (error) { next(error); }
+});
 
 /**
  * GET /api/v1/doctor/consultations

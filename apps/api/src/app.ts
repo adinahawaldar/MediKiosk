@@ -16,7 +16,9 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-app.use(express.json());
+// Voice input can contain Base64-encoded audio, which is larger than
+// Express's default JSON body limit.
+app.use(express.json({ limit: '10mb' }));
 
 // Routes
 app.use('/api/v1', healthRouter);

@@ -15,6 +15,7 @@ import {
   Printer
 } from 'lucide-react';
 import { downloadDoctorSummaryPdfWithPuppeteer } from '../../utils/generateDoctorSummaryPdf';
+import DocumentUpload from './DocumentUpload';
 
 interface MediKioskIntakeProps {
   onBackToWelcome?: () => void;
@@ -273,6 +274,7 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
               patientProfile: patientProfile || { name: 'Rahul Sharma', abhaNumber: abhaNumber || '91-9876-5432-1098' },
               chiefComplaint: mappedSymptoms.map(s => `${s.bodyRegion}: ${s.symptom}`).join(', ') || 'General Consultation',
               socrates: {
+                ...mappedSymptoms[0]?.additionalDetails?.socrates,
                 site: mappedSymptoms[0]?.bodyRegion || 'Multiple Regions',
                 onset: mappedSymptoms[0]?.onset || 'Recent',
                 severity: mappedSymptoms[0]?.severity || 'Moderate',
@@ -470,6 +472,8 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
             >
               {isLoading ? <span>Loading Body Model...</span> : <span>{getTx('Confirm & Open Body Model →')}</span>}
             </button>
+
+            <DocumentUpload patientProfile={patientProfile} />
           </div>
         )}
 

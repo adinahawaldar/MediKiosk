@@ -6,4 +6,5 @@ python-dotenv>=1.0.0
 langchain>=0.1.0
 langchain-google-genai>=1.0.0
 google-generativeai
+docling>=2.0.0
 
