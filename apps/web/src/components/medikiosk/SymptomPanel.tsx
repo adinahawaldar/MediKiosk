@@ -65,13 +65,12 @@ export const SymptomPanel: React.FC<SymptomPanelProps> = ({
     }
   };
 
-  // Helper to compute Turn Questions & Options dynamically for Turn 2, 3, 4, 5
+  // Helper to compute Turn Questions & Options dynamically for Turn 2, 3, 4, 5 (SOCRATES Framework)
   const computeTurnData = (turn: number, selectedDisease: string) => {
     const text = (selectedDisease || primaryProblem || initialSymptom || '').toLowerCase();
-    const isVomiting = text.includes('vomit') || text.includes('vometting') || text.includes('nausea') || text.includes('stomach') || regionId === 'stomach';
-    const isChest = text.includes('chest') || text.includes('breath') || text.includes('cough') || text.includes('palpit') || regionId === 'chest';
+    const isStomach = text.includes('stomach') || text.includes('vomit') || text.includes('nausea') || text.includes('abdomen') || regionId === 'stomach';
+    const isChest = text.includes('chest') || text.includes('breath') || text.includes('cough') || regionId === 'chest';
     const isHead = text.includes('head') || text.includes('fever') || text.includes('dizzy') || regionId === 'head';
-    const isKidney = text.includes('kidney') || text.includes('urine') || text.includes('flank') || text.includes('urinary') || regionId === 'kidney';
 
     if (turn === 1) {
       return {
@@ -81,87 +80,67 @@ export const SymptomPanel: React.FC<SymptomPanelProps> = ({
         options: getPrimaryOptions(regionId),
       };
     } else if (turn === 2) {
-      if (isHead) {
+      if (isStomach) {
         return {
-          question: `How long have you had this ${selectedDisease || 'headache/fever'}, and what kind of discomfort is it?`,
-          options: ['Started today', 'Last 2 to 3 days', 'Severe throbbing pain', 'High fever with body ache'],
-        };
-      } else if (isVomiting) {
-        return {
-          question: `How many times have you vomited or felt nauseous today?`,
-          options: ['1 to 2 times', '3 to 5 times', 'More than 5 times', 'Constant nausea only'],
+          question: `When did the abdominal pain or discomfort start?`,
+          options: ['Today', 'Yesterday', '2-3 days ago', 'More than a week ago'],
         };
       } else if (isChest) {
         return {
-          question: `When did the chest or breathing discomfort start, and what does it feel like?`,
-          options: ['Started today', 'Sharp stabbing pain', 'Heavy pressure on chest', 'Shortness of breath with cough'],
+          question: `When did the chest discomfort start?`,
+          options: ['Suddenly today', '1 to 2 hours ago', 'Gradually over days', 'After physical exertion'],
         };
-      } else if (isKidney) {
+      } else if (isHead) {
         return {
-          question: `How long have you had this kidney or flank discomfort, and does the pain come in sharp waves?`,
-          options: ['Started today', 'Sharp spasmodic pain', 'Dull ache in lower back', 'Fever with chills'],
+          question: `When and how did the headache start?`,
+          options: ['Suddenly today', 'Gradual buildup', 'After waking up', 'Last 2-3 days'],
         };
       }
       return {
-        question: `How long have you been experiencing this ${selectedDisease || 'problem'} in your ${regionName}?`,
-        options: ['Started today', 'Last 2 to 3 days', 'More than a week', 'Comes and goes'],
+        question: `When did your symptoms start?`,
+        options: ['Today', 'Yesterday', '2-3 days ago', 'More than a week ago'],
       };
     } else if (turn === 3) {
-      if (isHead) {
+      if (isStomach) {
         return {
-          question: `Do you have any dizziness, nausea, light sensitivity, or neck stiffness?`,
-          options: ['Dizziness & lightheadedness', 'Nausea & vomiting', 'Neck stiffness', 'None of these'],
+          question: `What does it feel like — burning, sharp, cramping, or something else?`,
+          options: ['Burning', 'Sharp cramping', 'Dull ache', 'Heavy bloating'],
         };
-      } else if (isVomiting) {
+      } else if (isChest) {
         return {
-          question: `Is the vomiting accompanied by abdominal pain, fever, or acid reflux?`,
-          options: ['Severe stomach pain', 'Mild fever & chills', 'Heavy acid reflux / burning', 'No other symptoms'],
+          question: `What does the chest discomfort feel like — heavy crushing pressure, sharp stabbing, or burning?`,
+          options: ['Heavy crushing pressure', 'Sharp stabbing pain', 'Burning heartburn', 'Tight constriction'],
+        };
+      } else if (isHead) {
+        return {
+          question: `What does the headache feel like — throbbing, heavy pressure, or sharp stabbing?`,
+          options: ['Throbbing / Pulsating', 'Heavy pressure', 'Sharp stabbing', 'Dull constant ache'],
+        };
+      }
+      return {
+        question: `What does the discomfort feel like — sharp, dull ache, burning, or stiffness?`,
+        options: ['Sharp pain', 'Dull ache', 'Burning sensation', 'Stiffness & swelling'],
+      };
+    } else if (turn === 4) {
+      if (isStomach) {
+        return {
+          question: `Does the pain move to your back, chest, or shoulder, and do you have nausea or fever?`,
+          options: ['Moves to back', 'I feel nauseous', 'Fever & chills', 'No radiation or other symptoms'],
         };
       } else if (isChest) {
         return {
           question: `Does the chest pain spread to your left arm, shoulder, or jaw?`,
-          options: ['Yes, spreads to left arm', 'Spreads to shoulder/back', 'Stays in center of chest', 'No radiation'],
-        };
-      } else if (isKidney) {
-        return {
-          question: `Do you have any burning during urination, fever, or change in urine color?`,
-          options: ['Burning during urination', 'Dark or cloudy urine', 'High fever & chills', 'None of these'],
+          options: ['Spreads to left arm / jaw', 'Spreads to shoulder/back', 'Shortness of breath', 'No radiation'],
         };
       }
       return {
-        question: `Is the discomfort constant, or does it get worse with movement or pressure?`,
-        options: ['Constant continuous pain', 'Worse with movement', 'Comes and goes in waves', 'Mild throbbing'],
-      };
-    } else if (turn === 4) {
-      if (isVomiting) {
-        return {
-          question: `Are you able to drink water or keep liquids down right now?`,
-          options: ['Yes, can drink water', 'Unable to keep liquids down', 'Feeling very weak', 'Slightly dehydrated'],
-        };
-      } else if (isChest) {
-        return {
-          question: `Does the chest discomfort get worse when lying down or taking a deep breath?`,
-          options: ['Worse when lying flat', 'Worse on deep breath', 'Worse with exertion', 'No change with position'],
-        };
-      } else if (isHead) {
-        return {
-          question: `Have you taken any medication for this (such as Paracetamol), and did it help?`,
-          options: ['Took Paracetamol - helped', 'Took medicine - no relief', 'Have not taken medication', 'Not sure'],
-        };
-      } else if (isKidney) {
-        return {
-          question: `Have you had any previous history of Kidney Stones, Urinary Infection, or High BP?`,
-          options: ['History of Kidney Stones', 'Recurrent Urinary Infection', 'High Blood Pressure', 'No past history'],
-        };
-      }
-      return {
-        question: `Are you experiencing any other symptoms like fever, fatigue, or numbness?`,
-        options: ['Fever / Chills', 'Fatigue / Weakness', 'Numbness / Tingling', 'No other symptoms'],
+        question: `Does the pain move anywhere else, or cause other symptoms like fever or nausea?`,
+        options: ['Spreads to adjacent area', 'Fever / Chills', 'Nausea / Loss of appetite', 'No other symptoms'],
       };
     } else {
       return {
-        question: `Do you have any past medical history (such as Diabetes, BP, or Allergies) related to this?`,
-        options: ['High Blood Pressure', 'Diabetes', 'Acidity / Ulcer history', 'No past medical history'],
+        question: `What makes it worse or better, and on a scale of 1–10, how severe is it?`,
+        options: ['Worse after eating (7/10)', 'Worse with movement (5/10)', 'Mild (3/10)', 'Severe (8/10)'],
       };
     }
   };
@@ -177,7 +156,10 @@ export const SymptomPanel: React.FC<SymptomPanelProps> = ({
     setCurrentOptions(t1.options);
   }, [regionId, initialSymptom]);
 
-  // Advance Turn in the 4-5 Question AI Interview (Fetches Live OpenAI Backend API)
+  // SOCRATES state tracking
+  const [socratesState, setSocratesState] = useState<Record<string, string>>({});
+
+  // Advance Turn in the adaptive SOCRATES AI Interview
   const advanceTurn = async (chosenAnswer: string) => {
     const newNotes = [...accumulatedNotes, chosenAnswer];
     setAccumulatedNotes(newNotes);
@@ -191,21 +173,7 @@ export const SymptomPanel: React.FC<SymptomPanelProps> = ({
     setTurnCount(nextTurn);
     setTypedDetail('');
 
-    if (nextTurn > 5) {
-      // Auto-save after completing all turns
-      onSaveSymptom({
-        bodyRegion: regionId,
-        symptom: newNotes.join('; '),
-        severity: selectedSeverity,
-        duration: 'Today',
-        additionalDetails: {
-          description: newNotes.join(' | '),
-        },
-      });
-      return;
-    }
-
-    // Call Live Backend AI Engine (Express / OpenAI gpt-4o-mini / Sarvam API)
+    // Call Live Backend AI Engine with SOCRATES State
     try {
       const res = await fetch('/api/v1/medikiosk/converse-turn', {
         method: 'POST',
@@ -215,22 +183,59 @@ export const SymptomPanel: React.FC<SymptomPanelProps> = ({
           regionId,
           regionName,
           turnCount: nextTurn,
+          socratesState,
         }),
       });
 
       if (res.ok) {
         const json = await res.json();
-        if (json.success && json.data?.aiQuestion) {
-          setCurrentQuestion(json.data.aiQuestion);
-          setCurrentOptions(json.data.options || []);
-          return;
+        if (json.success && json.data) {
+          const updatedSocrates = json.data.socratesState || socratesState;
+          setSocratesState(updatedSocrates);
+
+          if (json.data.isComplete) {
+            // Assessment for this symptom complete
+            const combinedSymptom = newNotes.join('; ') || primaryProblem || initialSymptom || 'Symptom Reported';
+            onSaveSymptom({
+              bodyRegion: regionId,
+              symptom: combinedSymptom,
+              severity: selectedSeverity,
+              duration: updatedSocrates.onset || 'Today',
+              onset: updatedSocrates.onset,
+              additionalDetails: {
+                description: newNotes.join(' | '),
+                socrates: updatedSocrates,
+              },
+            });
+            return;
+          }
+
+          if (json.data.aiQuestion) {
+            setCurrentQuestion(json.data.aiQuestion);
+            setCurrentOptions(json.data.options || []);
+            return;
+          }
         }
       }
     } catch (err) {
       console.warn('Backend API offline, using client AI engine fallback:', err);
     }
 
-    // Fallback to client engine if backend API is not running
+    if (nextTurn > 5) {
+      onSaveSymptom({
+        bodyRegion: regionId,
+        symptom: newNotes.join('; '),
+        severity: selectedSeverity,
+        duration: socratesState.onset || 'Today',
+        additionalDetails: {
+          description: newNotes.join(' | '),
+          socrates: socratesState,
+        },
+      });
+      return;
+    }
+
+    // Fallback to client engine
     const nextData = computeTurnData(nextTurn, activeProblem);
     setCurrentQuestion(nextData.question);
     setCurrentOptions(nextData.options);
@@ -243,9 +248,10 @@ export const SymptomPanel: React.FC<SymptomPanelProps> = ({
       bodyRegion: regionId,
       symptom: combinedSymptom,
       severity: selectedSeverity,
-      duration: 'Today',
+      duration: socratesState.onset || 'Today',
       additionalDetails: {
         description: accumulatedNotes.join(' | '),
+        socrates: socratesState,
       },
     });
   };

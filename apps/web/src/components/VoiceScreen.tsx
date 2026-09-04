@@ -234,10 +234,6 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
     try {
       let base64Audio = '';
 
-      const recordedAudio = audioBlob;
-      // Browser speech recognition already provides the transcript. Avoid
-      // sending a large audio payload when text is available.
-      if (recordedAudio && !spokenText) {
       if (audioBlob) {
         const targetBlob = audioBlob;
         base64Audio = await new Promise<string>((resolve) => {
@@ -250,7 +246,6 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
             resolve(res);
           };
 
-          reader.readAsDataURL(recordedAudio);
           reader.readAsDataURL(targetBlob);
         });
       }
@@ -351,8 +346,9 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
     } catch (err) {
       console.error('Pipeline error:', err);
 
-      const fallbackText =
-        `Samajh gaya. Aapne bataya: "${spokenText}".`;
+      const fallbackText = spokenText
+        ? `Samajh gaya. Aapne bataya: "${spokenText}".`
+        : 'Samajh gaya. Aapki pareshani darj kar li gayi hai.';
 
       setResponseText(fallbackText);
       setStatus('done');

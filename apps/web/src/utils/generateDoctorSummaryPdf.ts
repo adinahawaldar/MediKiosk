@@ -307,35 +307,22 @@ export const generateSummaryHTMLString = (data: PatientSummaryData = DEFAULT_STA
 };
 
 /**
- * Triggers PDF print window immediately
+ * Directly downloads the Doctor Clinical Summary PDF
  */
 export const openDoctorSummaryPdfWindow = (data: PatientSummaryData = DEFAULT_STATIC_SUMMARY_DATA) => {
-  const htmlContent = generateSummaryHTMLString(data);
-  const printWindow = window.open('', '_blank', 'width=900,height=1000');
-  if (printWindow) {
-    printWindow.document.open();
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-    }, 500);
-  } else {
-    // Fallback if popup blocker is enabled: redirect to static file
-    window.open('/doctor_clinical_summary.html', '_blank');
-  }
+  return downloadDoctorSummaryPdfDirect(data);
 };
 
 /**
- * Opens docgenerator.html directly in a new browser window/tab
+ * Opens Doctor_Clinical_Summary_00366.html directly in a new browser window/tab
  */
 export const openDocGeneratorHtmlWindow = (_data: PatientSummaryData = DEFAULT_STATIC_SUMMARY_DATA) => {
-  window.open('/docgenerator.html', '_blank');
+  window.open('/assets/Doctor_Clinical_Summary_00366.html', '_blank');
 };
 
 /**
- * Direct Client-Side PDF Download (Amira Law PDF Generator pattern)
- * Opens /docgenerator.html?autodownload=true in hidden iframe or direct popup to trigger immediate PDF export
+ * Direct Client-Side PDF Download
+ * Opens /assets/Doctor_Clinical_Summary_00366.html?autodownload=true to trigger immediate PDF export
  */
 export const downloadDoctorSummaryPdfDirect = async (
   data: PatientSummaryData = DEFAULT_STATIC_SUMMARY_DATA
@@ -362,11 +349,11 @@ export const downloadDoctorSummaryPdfDirect = async (
       return;
     }
   } catch (err) {
-    console.warn('Backend PDF endpoint unavailable, falling back to frontend docgenerator.html:', err);
+    console.warn('Backend PDF endpoint unavailable, falling back to frontend Doctor_Clinical_Summary_00366.html:', err);
   }
 
-  // Frontend Fallback: Trigger direct PDF download via /docgenerator.html
-  window.open('/docgenerator.html?autodownload=true', '_blank');
+  // Frontend Fallback: Trigger direct PDF download via /assets/Doctor_Clinical_Summary_00366.html
+  window.open('/assets/Doctor_Clinical_Summary_00366.html?autodownload=true', '_blank');
 };
 
 /**

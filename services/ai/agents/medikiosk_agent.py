@@ -54,13 +54,51 @@ def generate_hybrid_questions(chief_complaint: str, mode: str = "allopathy", lan
                 ]
             }
         else:
-            return {
-                "adaptiveQuestions": [
-                    { "id": "site", "question": "Where is the main location of your symptom/pain?", "options": ["Chest", "Abdomen", "Head", "Back/Joints"] },
-                    { "id": "onset", "question": "How did the symptoms begin?", "options": ["Sudden", "Gradual", "Intermittent"] },
-                    { "id": "severity", "question": "Rate the severity of your symptoms.", "options": ["Mild (1-3)", "Moderate (4-6)", "Severe (7-10)"] }
-                ]
-            }
+            c_text = (chief_complaint or "").lower()
+            if "stomach" in c_text or "vomit" in c_text or "abdomen" in c_text:
+                return {
+                    "adaptiveQuestions": [
+                        { "id": "site", "question": "Where exactly is the abdominal pain located?", "options": ["Upper abdomen", "Lower abdomen", "Right lower side", "All over stomach"] },
+                        { "id": "onset", "question": "When did the abdominal discomfort start?", "options": ["Today", "Yesterday", "2-3 days ago", "More than a week ago"] },
+                        { "id": "character", "question": "What does it feel like — burning, sharp cramping, or dull ache?", "options": ["Burning", "Sharp cramping", "Dull ache", "Heavy bloating"] },
+                        { "id": "radiation", "question": "Does the pain move to your back, chest, or shoulder?", "options": ["Moves to back", "Moves to chest/shoulder", "Stays in stomach", "No radiation"] },
+                        { "id": "associations", "question": "Do you have vomiting, fever, nausea, or any other symptoms?", "options": ["Nausea & vomiting", "Fever & chills", "Acidity & heartburn", "No other symptoms"] },
+                        { "id": "triggers", "question": "What makes it worse or better?", "options": ["Gets worse after eating", "Worse with movement", "Better with water/rest", "No specific trigger"] },
+                        { "id": "severity", "question": "On a scale of 1–10, how severe is it?", "options": ["Mild (1-3)", "Moderate (4-6)", "Severe (7-9)", "Emergency (10)"] }
+                    ]
+                }
+            elif "chest" in c_text:
+                return {
+                    "adaptiveQuestions": [
+                        { "id": "site", "question": "Where in your chest do you feel the pain or discomfort?", "options": ["Center of chest", "Left side of chest", "Right side", "Chest & upper back"] },
+                        { "id": "onset", "question": "When did the chest discomfort begin?", "options": ["Suddenly today", "1-2 hours ago", "Gradually over days", "After physical exertion"] },
+                        { "id": "character", "question": "What does it feel like — heavy crushing pressure, sharp stabbing, or burning?", "options": ["Heavy crushing pressure", "Sharp stabbing pain", "Burning heartburn", "Tight constriction"] },
+                        { "id": "radiation", "question": "Does the chest pain spread to your left arm, jaw, shoulder, or back?", "options": ["Spreads to left arm / jaw", "Spreads to shoulder/back", "Stays in center of chest", "No radiation"] },
+                        { "id": "associations", "question": "Do you have shortness of breath, cold sweating, dizziness, or nausea?", "options": ["Shortness of breath", "Cold sweating", "Dizziness & lightheadedness", "Nausea", "None of these"] },
+                        { "id": "severity", "question": "Rate the severity of your chest discomfort (1 to 10):", "options": ["Mild (1-3)", "Moderate (4-6)", "Severe (7-9)", "Critical Emergency (10)"] }
+                    ]
+                }
+            elif "rash" in c_text or "skin" in c_text:
+                return {
+                    "adaptiveQuestions": [
+                        { "id": "site", "question": "Where on your skin is the rash located?", "options": ["Arms & legs", "Face & neck", "Chest & back", "All over body"] },
+                        { "id": "onset", "question": "When did the rash start appearing?", "options": ["Today", "Yesterday", "2-3 days ago", "More than a week ago"] },
+                        { "id": "character", "question": "What does the rash look or feel like?", "options": ["Itchy red spots", "Fluid blisters", "Dry scaly patches", "Raised hives / swelling"] },
+                        { "id": "radiation", "question": "Is the rash spreading to other parts of your body?", "options": ["Spreading rapidly", "Spreading slowly", "Confined to one area", "No spreading"] },
+                        { "id": "triggers", "question": "Have you had exposure to new medications, soaps, foods, or outdoors?", "options": ["New medication", "New soap / cosmetics", "Outdoor / insect exposure", "Unknown trigger"] },
+                        { "id": "severity", "question": "On a scale of 1–10, how severe is the itching or discomfort?", "options": ["Mild (1-3)", "Moderate (4-6)", "Severe (7-10)"] }
+                    ]
+                }
+            else:
+                return {
+                    "adaptiveQuestions": [
+                        { "id": "site", "question": "Where is the main location of your symptom or pain?", "options": ["Chest", "Abdomen", "Head", "Back/Joints"] },
+                        { "id": "onset", "question": "When did the symptoms begin?", "options": ["Sudden today", "Gradual over days", "Intermittent"] },
+                        { "id": "character", "question": "What does the discomfort feel like?", "options": ["Sharp pain", "Dull ache", "Burning", "Stiffness"] },
+                        { "id": "radiation", "question": "Does the discomfort move anywhere else?", "options": ["Spreads to adjacent area", "Moves to back", "No radiation"] },
+                        { "id": "severity", "question": "Rate the severity of your symptoms (1-10):", "options": ["Mild (1-3)", "Moderate (4-6)", "Severe (7-10)"] }
+                    ]
+                }
 
 
 def evaluate_red_flags(chief_complaint: str, socrates_answers: Dict[str, str] = None) -> List[str]:

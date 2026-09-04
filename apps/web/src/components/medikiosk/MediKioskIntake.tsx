@@ -551,6 +551,48 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
               </div>
             </div>
 
+            {/* AI Pre-Consultation Summary (SOCRATES Clinical Data) */}
+            <div className="bg-slate-900 text-white rounded-3xl p-5 text-left space-y-3 shadow-lg border border-slate-800">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                <h3 className="text-xs font-black uppercase tracking-widest text-emerald-400">
+                  AI Pre-Consultation Summary
+                </h3>
+                <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                  SOCRATES Engine
+                </span>
+              </div>
+              <div className="grid grid-cols-1 gap-1.5 text-xs font-medium">
+                <div>
+                  <span className="text-slate-400 font-semibold">Primary complaint: </span>
+                  <span className="font-extrabold text-white">{mappedSymptoms[0]?.additionalDetails?.socrates?.site || mappedSymptoms[0]?.bodyRegion || 'General'} Discomfort</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-semibold">Onset: </span>
+                  <span className="font-bold text-slate-200">{mappedSymptoms[0]?.additionalDetails?.socrates?.onset || mappedSymptoms[0]?.duration || 'Recent'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-semibold">Character: </span>
+                  <span className="font-bold text-slate-200">{mappedSymptoms[0]?.additionalDetails?.socrates?.character || 'Pain / Discomfort'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-semibold">Severity: </span>
+                  <span className="font-bold text-emerald-400">{mappedSymptoms[0]?.additionalDetails?.socrates?.severity || mappedSymptoms[0]?.severity || 'Moderate'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-semibold">Associated symptoms: </span>
+                  <span className="font-bold text-slate-200">{mappedSymptoms[0]?.additionalDetails?.socrates?.associatedSymptoms || 'None reported'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-semibold">Trigger: </span>
+                  <span className="font-bold text-slate-200">{mappedSymptoms[0]?.additionalDetails?.socrates?.triggers || 'None reported'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-semibold">Radiation: </span>
+                  <span className="font-bold text-slate-200">{mappedSymptoms[0]?.additionalDetails?.socrates?.radiation || 'None reported'}</span>
+                </div>
+              </div>
+            </div>
+
             {/* Patient Details Summary */}
             {patientProfile && (
               <div className="bg-slate-50 rounded-2xl p-4 text-left space-y-1.5 text-xs">
