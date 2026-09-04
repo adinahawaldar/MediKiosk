@@ -7,6 +7,7 @@ export interface IConsultation extends Document {
   symptoms?: string[];
   chiefComplaint?: string;
   socrates?: Record<string, string>;
+  socratesRaw?: Record<string, string>;
   historyMode?: 'allopathy' | 'ayush';
   ayushHistory?: Record<string, string>;
   vitals?: { temperature?: number };
@@ -38,6 +39,7 @@ const ConsultationSchema: Schema = new Schema({
   symptoms: { type: [String], default: [] },
   chiefComplaint: { type: String, default: '' },
   socrates: { type: Schema.Types.Mixed, default: {} },
+  socratesRaw: { type: Schema.Types.Mixed, default: {} },
   historyMode: { type: String, enum: ['allopathy', 'ayush'], default: 'allopathy' },
   ayushHistory: { type: Schema.Types.Mixed, default: {} },
   vitals: {
