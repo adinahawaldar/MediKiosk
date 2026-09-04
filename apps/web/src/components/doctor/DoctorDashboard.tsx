@@ -977,10 +977,92 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
     }
   };
 
+  const simulateLiveKioskIntake = () => {
+    const liveOptions = [
+      { first: 'Zain', last: 'Pawle', concern: 'Severe Migraine Headache (9/10)', priority: 'urgent' as const },
+      { first: 'Rohan', last: 'Verma', concern: 'Acute Bronchitis & Wheezing', priority: 'urgent' as const },
+      { first: 'Farhan', last: 'Qureshi', concern: 'Severe Retrosternal Chest Pain (8/10)', priority: 'emergency' as const },
+      { first: 'Aisha', last: 'Siddiqui', concern: 'High Grade Fever (102.8°F) & Chills', priority: 'urgent' as const },
+      { first: 'Pooja', last: 'Hegde', concern: 'Mild Sore Throat & Nasal Congestion', priority: 'routine' as const },
+    ];
+    const choice = liveOptions[Math.floor(Math.random() * liveOptions.length)];
+    const randomId = Math.floor(1000 + Math.random() * 9000);
+
+    const liveConsultation: ConsultationItem = {
+      _id: `live-kiosk-${Date.now()}`,
+      patientId: {
+        _id: `p-live-${randomId}`,
+        firstName: choice.first,
+        lastName: choice.last,
+        phone: `+91 98765 ${randomId}`,
+        gender: Math.random() > 0.5 ? 'Female' : 'Male',
+        hospitalId: `HOSP-LIVE-${randomId}`,
+        allergies: ['None reported'],
+        medicalHistory: ['Digital Kiosk Check-in Completed'],
+      },
+      doctorId: {
+        _id: 'doc-rao',
+        firstName: 'Ananya',
+        lastName: 'Rao',
+        specialization: 'General Medicine',
+        department: 'Outpatient Clinic',
+      },
+      symptoms: [choice.concern],
+      diagnosis: `MediKiosk Intake (${choice.priority.toUpperCase()})`,
+      treatmentPlan: 'Physician consultation pending.',
+      status: 'open',
+      priority: choice.priority,
+      triageScore: choice.priority === 'emergency' ? 92 : choice.priority === 'urgent' ? 68 : 32,
+      triageNotes: `LIVE KIOSK INTAKE: ${choice.priority.toUpperCase()} priority. ${choice.concern}.`,
+      triageAIEvaluated: true,
+      soapNotes: {
+        subjective: `CHIEF COMPLAINT: ${choice.concern}`,
+        objective: `Kiosk Vitals: Digital check-in verified. Temp 98.6°F.`,
+        assessment: `Live Kiosk Intake completed. Patient queued for physician consultation.`,
+        plan: `Proceed with physical examination.`,
+      },
+      createdAt: new Date().toISOString(),
+    };
+
+    setConsultations(prev => [liveConsultation, ...prev]);
+    setSelectedConsultation(liveConsultation);
+
+    try {
+      localStorage.setItem('medikiosk_latest_submission', JSON.stringify(liveConsultation));
+      window.dispatchEvent(new CustomEvent('kiosk-intake-submitted', { detail: liveConsultation }));
+    } catch (e) {}
+  };
+
   useEffect(() => {
     fetchQueue();
-    const interval = setInterval(fetchQueue, 15000);
-    return () => clearInterval(interval);
+    const interval = setInterval(fetchQueue, 3000);
+
+    const handleLiveIntake = (event?: any) => {
+      let liveData = event?.detail;
+      if (!liveData) {
+        try {
+          const stored = localStorage.getItem('medikiosk_latest_submission');
+          if (stored) liveData = JSON.parse(stored);
+        } catch (e) {}
+      }
+      if (liveData && liveData._id) {
+        setConsultations(prev => {
+          const exists = prev.some(c => c._id === liveData._id || c.patientId?.phone === liveData.patientId?.phone);
+          if (exists) return prev;
+          return [liveData, ...prev];
+        });
+        setSelectedConsultation(liveData);
+      }
+    };
+
+    window.addEventListener('kiosk-intake-submitted', handleLiveIntake);
+    window.addEventListener('storage', handleLiveIntake);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('kiosk-intake-submitted', handleLiveIntake);
+      window.removeEventListener('storage', handleLiveIntake);
+    };
   }, []);
 
   const handleSelectPatient = (item: ConsultationItem) => {
@@ -1093,16 +1175,31 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
   return (
     <div className="w-full min-h-screen bg-white text-slate-900 p-6 md:p-10 font-sans antialiased">
       
-      {/* Top Bar with Refresh */}
+      {/* Top Bar with Real-time Kiosk Integration & Refresh */}
       <div className="w-full flex justify-between items-center mb-2">
-        <div></div>
         <button
           type="button"
-          onClick={fetchQueue}
-          className="px-3.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm ml-auto"
+          onClick={onBackToKiosk}
+          className="px-3.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm flex items-center space-x-1.5"
         >
-          Refresh Queue
+          <span>🖥️ Launch Patient Kiosk Intake</span>
         </button>
+        <div className="flex items-center space-x-2">
+          <button
+            type="button"
+            onClick={simulateLiveKioskIntake}
+            className="px-3.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-sm flex items-center space-x-1.5 animate-pulse"
+          >
+            <span>⚡ Simulate Live Kiosk Check-in</span>
+          </button>
+          <button
+            type="button"
+            onClick={fetchQueue}
+            className="px-3.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
+          >
+            Refresh Queue
+          </button>
+        </div>
       </div>
 
       {/* Centered Top Headline */}

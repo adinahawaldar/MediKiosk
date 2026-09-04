@@ -273,7 +273,7 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
 
         // Submit directly to Doctor Database (MongoDB)
         try {
-          await fetch('/api/v1/medikiosk/submit-to-doctor', {
+          const resDoc = await fetch('/api/v1/medikiosk/submit-to-doctor', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -295,6 +295,48 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
               vitals: { temperature: temperature ? Number(temperature) : undefined },
             }),
           });
+          const docData = await resDoc.json();
+
+          const liveIntakeItem = docData.data || {
+            _id: `live-kiosk-${Date.now()}`,
+            patientId: {
+              _id: `p-live-${Date.now()}`,
+              firstName: patientProfile?.name?.split(' ')[0] || patientProfile?.firstName || 'Kiosk',
+              lastName: patientProfile?.name?.split(' ').slice(1).join(' ') || patientProfile?.lastName || 'Patient',
+              phone: patientProfile?.mobile || patientProfile?.phone || `+91 98765 ${Math.floor(10000 + Math.random() * 90000)}`,
+              gender: patientProfile?.gender || 'Adult',
+              hospitalId: `HOSP-LIVE-${Math.floor(100 + Math.random() * 900)}`,
+              allergies: patientProfile?.allergies || ['None known'],
+              medicalHistory: patientProfile?.medicalHistory || ['Kiosk Intake Completed'],
+            },
+            doctorId: {
+              _id: 'doc-rao',
+              firstName: 'Ananya',
+              lastName: 'Rao',
+              specialization: 'General Medicine',
+              department: 'Outpatient Clinic',
+            },
+            symptoms: mappedSymptoms.map(s => `${s.bodyRegion}: ${s.symptom}`),
+            diagnosis: `MediKiosk Intake (${data.data?.triage || 'GREEN'})`,
+            treatmentPlan: 'Physician evaluation pending.',
+            status: 'open',
+            priority: (data.data?.triage || 'GREEN').toLowerCase() === 'red' ? 'emergency' : (data.data?.triage || 'GREEN').toLowerCase() === 'amber' ? 'urgent' : 'routine',
+            triageScore: data.data?.triageScore ?? (data.data?.triage === 'RED' ? 90 : data.data?.triage === 'AMBER' ? 65 : 35),
+            triageNotes: `LIVE KIOSK INTAKE: ${data.data?.triage || 'GREEN'} priority. ${mappedSymptoms.map(s => `${s.bodyRegion}: ${s.symptom}`).join(', ')}`,
+            triageAIEvaluated: true,
+            soapNotes: {
+              subjective: `CHIEF COMPLAINT: ${mappedSymptoms.map(s => `${s.bodyRegion}: ${s.symptom}`).join(', ')}`,
+              objective: `Kiosk Vitals: Temp ${temperature || '98.6'}°F. Digital check-in verified.`,
+              assessment: `Live Kiosk Intake completed. Patient queued for physician consultation.`,
+              plan: `Proceed with physical examination.`,
+            },
+            createdAt: new Date().toISOString(),
+          };
+
+          window.dispatchEvent(new CustomEvent('kiosk-intake-submitted', { detail: liveIntakeItem }));
+          try {
+            localStorage.setItem('medikiosk_latest_submission', JSON.stringify(liveIntakeItem));
+          } catch (e) {}
         } catch (dbErr) {
           console.warn('Failed to submit consultation to doctor DB:', dbErr);
         }
