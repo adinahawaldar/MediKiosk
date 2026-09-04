@@ -461,7 +461,7 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
       </div>
 
       {/* Main Grid: Queue List + Clinical Detail */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
         {/* Patient Queue (5 Cols) */}
         <div className="lg:col-span-5 flex flex-col h-[720px]">
           <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
@@ -530,108 +530,66 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
           )}
         </div>
 
-        {/* Selected Clinical Report Drawer (7 Cols) */}
-        <div className="lg:col-span-7 flex flex-col h-[720px]">
+        {/* Selected Clinical Report Drawer (7 Cols - Compact & Set Away with Left Border) */}
+        <div className="lg:col-span-7 flex flex-col h-[720px] lg:pl-8 lg:border-l lg:border-slate-200">
           {selectedConsultation ? (
-            <div className="overflow-y-auto flex-1 pr-2 space-y-6 scrollbar-thin">
-              {/* Patient Banner with Basic Details & Summary Option */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-4 border-b border-slate-200 gap-3">
+            <div className="overflow-y-auto flex-1 pr-2 space-y-4 scrollbar-thin">
+              {/* Compact Patient Header */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-3 border-b border-slate-200 gap-2">
                 <div>
                   <div className="flex items-center space-x-2">
-                    <h2 className="text-xl font-black text-slate-900 tracking-tight">
+                    <h2 className="text-lg font-black text-slate-900 tracking-tight">
                       {selectedConsultation.patientId?.firstName} {selectedConsultation.patientId?.lastName}
                     </h2>
-                    <span className="text-[10px] px-2.5 py-0.5 rounded bg-slate-100 border border-slate-200 font-bold text-slate-600 uppercase tracking-wider">
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-slate-100 border border-slate-200 font-bold text-slate-600 uppercase">
                       {selectedConsultation.patientId?.gender || 'Adult'}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 mt-1 font-medium">
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
                     Phone: {selectedConsultation.patientId?.phone} • Hospital ID: {selectedConsultation.patientId?.hospitalId}
                   </p>
                 </div>
 
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2">
                   <button
                     type="button"
                     onClick={() => void openSummary(selectedConsultation)}
-                    className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer"
+                    className="px-3.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center space-x-1 shadow-sm transition-all cursor-pointer"
                   >
-                    <span>📄 Open AI Summary Report</span>
+                    <span>📄 Open Summary Report</span>
                   </button>
-                  <span className={`px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider border ${
+                  <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase border ${
                     selectedConsultation.priority === 'emergency'
-                      ? 'bg-rose-100 text-rose-800 border-rose-300'
+                      ? 'bg-rose-50 text-rose-800 border-rose-200'
                       : selectedConsultation.priority === 'urgent'
-                      ? 'bg-amber-100 text-amber-800 border-amber-300'
-                      : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                      ? 'bg-amber-50 text-amber-800 border-amber-200'
+                      : 'bg-emerald-50 text-emerald-800 border-emerald-200'
                   }`}>
                     {selectedConsultation.priority} TRIAGE
                   </span>
                 </div>
               </div>
 
-              {/* Open Summary Option Banner */}
-              <div className="p-4 bg-slate-50 border border-slate-200 text-slate-900 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
-                <div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-0.5">
-                    Pre-Consultation Clinical Intake
-                  </span>
-                  <h4 className="text-xs font-bold text-slate-900">
-                    SOCRATES Intake Report & Medical History Summary
-                  </h4>
+              {/* Compact Medical History & Allergies */}
+              <div className="py-2.5 border-b border-slate-100 text-xs space-y-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block">
+                  Medical History & Allergies
+                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-bold text-slate-700">Allergies:</span>
+                  {selectedConsultation.patientId?.allergies && selectedConsultation.patientId.allergies.length > 0 ? (
+                    selectedConsultation.patientId.allergies.map((allergy, idx) => (
+                      <span key={idx} className="px-2 py-0.5 bg-rose-50 border border-rose-200 text-rose-700 font-bold text-[10px] rounded">
+                        {allergy}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-slate-500 font-medium">None known</span>
+                  )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => void openSummary(selectedConsultation)}
-                  className="px-4 py-2 bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shadow-sm"
-                >
-                  📄 Open Summary Report
-                </button>
-              </div>
-
-              {/* Access to Past Medical Records & History Section */}
-              <div className="py-3 border-b border-slate-200 space-y-2.5 bg-slate-50/60 p-4 rounded-xl">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-800 flex items-center space-x-1.5">
-                    <span>Access to Past Records & Medical History</span>
-                  </h3>
-                  <span className="text-[10px] bg-slate-200 text-slate-700 font-bold px-2 py-0.5 rounded border border-slate-300 uppercase">
-                    Verified Electronic Health Record
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
-                  {/* Known Allergies */}
-                  <div className="p-2.5 bg-white border border-slate-200 rounded-lg space-y-1">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">
-                      Known Allergies & Sensitivities
-                    </span>
-                    <div className="flex flex-wrap gap-1">
-                      {selectedConsultation.patientId?.allergies && selectedConsultation.patientId.allergies.length > 0 ? (
-                        selectedConsultation.patientId.allergies.map((allergy, idx) => (
-                          <span key={idx} className="px-2 py-0.5 bg-rose-50 border border-rose-200 text-rose-700 font-bold text-[10px] rounded">
-                            {allergy}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-slate-600 font-medium">No Known Drug Allergies</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Medical History & Prior Visits */}
-                  <div className="p-2.5 bg-white border border-slate-200 rounded-lg space-y-1">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">
-                      Past Medical History & Prior Visits
-                    </span>
-                    <div className="text-slate-700 font-semibold text-[11px] leading-snug">
-                      {selectedConsultation.patientId?.medicalHistory && selectedConsultation.patientId.medicalHistory.length > 0 ? (
-                        selectedConsultation.patientId.medicalHistory.join(' • ')
-                      ) : (
-                        'No prior medical conditions recorded.'
-                      )}
-                    </div>
-                  </div>
+                <div className="text-slate-600 font-medium text-[11px]">
+                  <span className="font-bold text-slate-700">History: </span>
+                  {selectedConsultation.patientId?.medicalHistory?.join(' • ') || 'No prior medical conditions recorded.'}
                 </div>
               </div>
 
