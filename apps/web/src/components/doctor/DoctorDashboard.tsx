@@ -1221,14 +1221,29 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
       
       {/* Top Bar with Refresh */}
       <div className="w-full flex justify-between items-center mb-2">
-        <div></div>
         <button
           type="button"
-          onClick={fetchQueue}
-          className="px-3.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm ml-auto"
+          onClick={onBackToKiosk}
+          className="px-3.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
         >
-          Refresh Queue
+          ← Back to Welcome
         </button>
+        <div className="flex items-center space-x-2">
+          <button
+            type="button"
+            onClick={simulateLiveKioskIntake}
+            className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
+          >
+            + Simulate Intake
+          </button>
+          <button
+            type="button"
+            onClick={fetchQueue}
+            className="px-3.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
+          >
+            Refresh Queue
+          </button>
+        </div>
       </div>
 
       {/* Centered Top Headline */}
@@ -1378,6 +1393,40 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
                       {selectedConsultation.priority} TRIAGE
                     </span>
                   </div>
+                </div>
+
+                {error && (
+                  <div className="text-xs text-rose-600 font-bold p-2 bg-rose-50 rounded border border-rose-200">
+                    {error}
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-200/60">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase">Override Triage:</span>
+                  <select
+                    value={triageOverride}
+                    onChange={(e) => setTriageOverride(e.target.value as any)}
+                    className="text-xs p-1.5 rounded border border-slate-200 bg-white font-semibold text-slate-800"
+                  >
+                    <option value="emergency">EMERGENCY</option>
+                    <option value="urgent">URGENT</option>
+                    <option value="routine">ROUTINE</option>
+                  </select>
+                  <input
+                    type="text"
+                    placeholder="Reason for triage override..."
+                    value={triageOverrideReason}
+                    onChange={(e) => setTriageOverrideReason(e.target.value)}
+                    className="text-xs p-1.5 border border-slate-200 rounded flex-1 min-w-[140px] font-medium"
+                  />
+                  <button
+                    type="button"
+                    disabled={isSavingTriage || !triageOverrideReason.trim()}
+                    onClick={handleTriageOverride}
+                    className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-extrabold uppercase disabled:opacity-50 transition-all cursor-pointer"
+                  >
+                    {isSavingTriage ? 'Saving...' : 'Apply'}
+                  </button>
                 </div>
 
                 {/* Primary CTA: Open Summary PDF/Report */}

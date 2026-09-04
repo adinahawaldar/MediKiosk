@@ -4,7 +4,6 @@ import type { MappedSymptom } from './BodyModel';
 import SymptomPanel from './SymptomPanel';
 import LanguageBar from './LanguageBar';
 import {
-  ShieldCheck,
   CheckCircle2,
   RefreshCw,
   RotateCcw,

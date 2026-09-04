@@ -257,7 +257,7 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
             resolve(res);
           };
 
-          reader.readAsDataURL(audioBlob);
+          reader.readAsDataURL(audioBlob!);
         });
       }
 

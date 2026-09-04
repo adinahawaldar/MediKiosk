@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, Keyboard, HelpCircle, User, Stethoscope, FileText } from 'lucide-react';
+import { Mic, Keyboard, HelpCircle } from 'lucide-react';
 import MedicalAvatar from './MedicalAvatar';
 
 export interface WelcomeProps {

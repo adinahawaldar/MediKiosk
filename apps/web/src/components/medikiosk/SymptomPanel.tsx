@@ -393,19 +393,17 @@ export const SymptomPanel: React.FC<SymptomPanelProps> = ({
     setCurrentOptions(nextData.options);
   };
 
-  // Save Complete Intake Session
   const handleFinalSave = () => {
     const combinedSymptom = accumulatedNotes.join('; ') || primaryProblem || initialSymptom || 'Symptom Reported';
     onSaveSymptom({
       bodyRegion: regionId,
       symptom: combinedSymptom,
       severity: selectedSeverity,
-      duration: socratesState.onset || 'Today',
+      duration: socratesAnswers.onset || 'Today',
       additionalDetails: {
         description: accumulatedNotes.join(' | '),
-          socrates: mode === 'allopathy' ? socratesAnswers : {},
-          ayush: mode === 'ayush' ? socratesAnswers : {},
-        socrates: socratesState,
+        socrates: mode === 'allopathy' ? socratesAnswers : {},
+        ayush: mode === 'ayush' ? socratesAnswers : {},
       },
     });
   };
