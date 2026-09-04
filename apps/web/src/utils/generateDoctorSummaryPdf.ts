@@ -33,6 +33,7 @@ export interface PatientSummaryData {
   socrates?: Array<{ label: string; value: string }>;
   allergies?: string[];
   prescriptions?: Array<{ medications: string[]; instructions: string; status: string; version?: number }>;
+  ocrDocuments?: Array<{ fileName: string; documentType: string; summary: string; abnormalLabFlags?: string[] }>;
 }
 
 export const DEFAULT_STATIC_SUMMARY_DATA: PatientSummaryData = {
@@ -286,6 +287,9 @@ export const generateSummaryHTMLString = (data: PatientSummaryData = DEFAULT_STA
   <table class="results-table"><thead><tr><th>Version</th><th>Medication(s)</th><th>Instructions</th><th>Status</th></tr></thead><tbody>
   ${data.prescriptions.map(p => `<tr><td>${escapeHtml(p.version || 1)}</td><td>${p.medications.map(escapeHtml).join('<br>')}</td><td>${escapeHtml(p.instructions)}</td><td>${escapeHtml(p.status)}</td></tr>`).join('')}
   </tbody></table>` : ''}
+
+  ${data.ocrDocuments?.length ? `<div class="section-title">Scanned Records (OCR Drafts):</div>
+  <div style="margin-bottom:8px;">${data.ocrDocuments.map(doc => `<b>${escapeHtml(doc.documentType)} - ${escapeHtml(doc.fileName)}:</b> ${escapeHtml(doc.summary)}${doc.abnormalLabFlags?.length ? `<br><b>Flags:</b> ${doc.abnormalLabFlags.map(escapeHtml).join('; ')}` : ''}`).join('<br>')}</div>` : ''}
 
   <div class="reminders-box">
     <div class="reminders-title">Clinical Reminders & AI Pre-Consultation Notes:</div>

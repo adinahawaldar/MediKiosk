@@ -3,7 +3,15 @@ import { translateTextWithSarvam } from '../services/sarvamTranslate.js';
 import { Consultation } from '../models/Consultation.js';
 import { Doctor } from '../models/Doctor.js';
 import { Patient } from '../models/Patient.js';
+import { MedicalDocument } from '../models/MedicalDocument.js';
 import { generatePdfFromHtml } from '../services/puppeteerPdf.js';
+import { promises as fs } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { z } from 'zod';
+
+const router = Router();
 
 export interface SymptomItem {
   bodyRegion: string;
@@ -17,6 +25,75 @@ export interface SymptomItem {
     description?: string;
   };
 }
+
+const ocrUploadSchema = z.object({
+  consentGiven: z.literal(true),
+  fileName: z.string().trim().min(1).max(180),
+  mimeType: z.enum(['application/pdf', 'image/jpeg', 'image/png', 'image/webp']),
+  contentBase64: z.string().min(1),
+  documentType: z.enum(['Prescription', 'Lab Report', 'Discharge Summary', 'Other']).default('Other'),
+  patientProfile: z.object({
+    name: z.string().trim().min(1).max(160),
+    mobile: z.string().trim().min(5).max(30).optional(),
+    phone: z.string().trim().min(5).max(30).optional(),
+    gender: z.string().trim().max(30).optional(),
+    age: z.number().int().min(0).max(130).optional(),
+    abhaNumber: z.string().trim().max(40).optional(),
+  }),
+});
+
+const getOrCreateOcrPatient = async (profile: z.infer<typeof ocrUploadSchema>['patientProfile']) => {
+  const phone = profile.mobile || profile.phone || `ocr-${randomUUID()}`;
+  let patient = await Patient.findOne({ phone }).exec();
+  if (!patient) {
+    const [firstName, ...rest] = profile.name.split(' ');
+    patient = await Patient.create({
+      firstName, lastName: rest.join(' ') || 'Patient', gender: profile.gender || 'Other',
+      dateOfBirth: profile.age ? new Date(Date.now() - profile.age * 365.25 * 24 * 3600 * 1000) : new Date('1990-01-01'),
+      phone, medicalHistory: [], allergies: [],
+    });
+  }
+  return patient;
+};
+
+/** POST /api/v1/medikiosk/ocr - consented temporary upload and AI extraction */
+router.post('/ocr', async (req: Request, res: Response) => {
+  let temporaryPath: string | undefined;
+  try {
+    const payload = ocrUploadSchema.parse(req.body);
+    const content = Buffer.from(payload.contentBase64, 'base64');
+    if (!content.length || content.length > 8 * 1024 * 1024) {
+      return res.status(413).json({ success: false, error: 'Document must be between 1 byte and 8 MB.' });
+    }
+
+    const patient = await getOrCreateOcrPatient(payload.patientProfile);
+    const extension = path.extname(payload.fileName) || (payload.mimeType === 'application/pdf' ? '.pdf' : '.jpg');
+    temporaryPath = path.join(os.tmpdir(), `hospitalos-ocr-${randomUUID()}${extension}`);
+    await fs.writeFile(temporaryPath, content);
+
+    const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:8000';
+    const aiResponse = await fetch(`${aiServiceUrl}/api/v1/agent/medikiosk/ocr`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filePath: temporaryPath, docType: payload.documentType }),
+    });
+    if (!aiResponse.ok) throw new Error(`OCR service returned ${aiResponse.status}`);
+    const aiBody: any = await aiResponse.json();
+    const extracted = aiBody.data || aiBody;
+    const document = await MedicalDocument.create({
+      patientId: patient._id, fileName: payload.fileName, documentType: payload.documentType,
+      extractedDiagnosis: extracted.extractedDiagnosis || '', extractedMedications: extracted.extractedMedications || [],
+      extractedLabValues: extracted.extractedLabValues || [], abnormalLabFlags: extracted.abnormalLabFlags || [],
+      summary: extracted.summary || 'OCR extraction completed. Physician review required.',
+      pageCount: extracted.pageCount || 1, status: 'draft',
+    });
+    return res.status(201).json({ success: true, data: { document, patientId: patient._id }, message: 'Document digitized as a draft.' });
+  } catch (error: any) {
+    const status = error instanceof z.ZodError ? 400 : 500;
+    return res.status(status).json({ success: false, error: status === 400 ? error.issues : error.message || 'OCR processing failed' });
+  } finally {
+    if (temporaryPath) await fs.rm(temporaryPath, { force: true }).catch(() => undefined);
+  }
+});
 
 export interface KioskSession {
   sessionId: string;
@@ -44,8 +121,6 @@ export interface KioskSession {
 
 // In-memory ephemeral session store (DPDP Act 2023 compliant)
 const activeSessions = new Map<string, KioskSession>();
-
-const router = Router();
 
 /**
  * Live Sarvam AI Translation Endpoint

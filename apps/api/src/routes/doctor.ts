@@ -6,6 +6,7 @@ import { Patient } from '../models/Patient.js';
 import { Prescription } from '../models/Prescription.js';
 import { PrescriptionVersion } from '../models/PrescriptionVersion.js';
 import { LabReport } from '../models/LabReport.js';
+import { MedicalDocument } from '../models/MedicalDocument.js';
 
 const router = Router();
 
@@ -34,14 +35,15 @@ router.get('/consultations/:id/summary', async (req: Request, res: Response, nex
     if (!consultation) return res.status(404).json({ success: false, error: 'Consultation not found' });
 
     const patientId = (consultation.patientId as any)._id || consultation.patientId;
-    const [prescriptions, prescriptionVersions, labReports, priorConsultations] = await Promise.all([
+    const [prescriptions, prescriptionVersions, labReports, medicalDocuments, priorConsultations] = await Promise.all([
       Prescription.find({ patientId }).sort({ updatedAt: -1 }).lean().exec(),
       PrescriptionVersion.find({ patientId }).sort({ createdAt: -1 }).lean().exec(),
       LabReport.find({ patientId }).sort({ createdAt: -1 }).limit(12).lean().exec(),
+      MedicalDocument.find({ patientId }).sort({ createdAt: -1 }).limit(12).lean().exec(),
       Consultation.find({ patientId, _id: { $ne: consultation._id } }).sort({ createdAt: -1 }).limit(8).lean().exec(),
     ]);
 
-    return res.json({ success: true, data: { consultation, prescriptions, prescriptionVersions, labReports, priorConsultations } });
+    return res.json({ success: true, data: { consultation, prescriptions, prescriptionVersions, labReports, medicalDocuments, priorConsultations } });
   } catch (error) { next(error); }
 });
 
