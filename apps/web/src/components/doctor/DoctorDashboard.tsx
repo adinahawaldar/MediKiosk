@@ -231,9 +231,9 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
       </div>
 
       {/* Main Grid: Queue List + Clinical Detail */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Patient Queue (5 Cols) */}
-        <div className="lg:col-span-5 bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col h-[720px]">
+        <div className="lg:col-span-5 flex flex-col h-[720px]">
           <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
             <h2 className="text-xs font-black text-slate-800 uppercase tracking-widest">
               Waiting Patients ({filteredQueue.length})
@@ -301,7 +301,7 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
         </div>
 
         {/* Selected Clinical Report Drawer (7 Cols) */}
-        <div className="lg:col-span-7 bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col h-[720px]">
+        <div className="lg:col-span-7 flex flex-col h-[720px]">
           {selectedConsultation ? (
             <div className="overflow-y-auto flex-1 pr-2 space-y-6 scrollbar-thin">
               {/* Patient Banner */}
