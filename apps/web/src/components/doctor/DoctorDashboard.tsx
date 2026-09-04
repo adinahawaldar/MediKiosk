@@ -491,14 +491,14 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
                     onClick={() => handleSelectPatient(item)}
                     className={`p-4 rounded-xl border transition-all cursor-pointer ${
                       isSelected
-                        ? 'border-slate-900 bg-slate-900 text-white shadow-md'
+                        ? 'border-slate-400 bg-slate-100 text-slate-900 shadow-sm'
                         : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-900 shadow-sm'
                     }`}
                   >
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded mr-2 ${
-                          isSelected ? 'bg-slate-800 text-slate-200' : 'bg-slate-100 text-slate-700 border border-slate-200'
+                          isSelected ? 'bg-slate-200 text-slate-800 border border-slate-300' : 'bg-slate-100 text-slate-700 border border-slate-200'
                         }`}>
                           {item.patientId?.hospitalId || 'WALK-IN'}
                         </span>
@@ -507,14 +507,14 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
                         </span>
                       </div>
                       <span className={`text-[10px] px-2.5 py-0.5 rounded font-black uppercase tracking-wider ${
-                        isSelected ? 'bg-slate-800 text-slate-200 border border-slate-700' : 'bg-slate-100 border border-slate-200 text-slate-700'
+                        isSelected ? 'bg-slate-200 text-slate-800 border border-slate-300' : 'bg-slate-100 border border-slate-200 text-slate-700'
                       }`}>
                         {item.priority}
                       </span>
                     </div>
 
                     <p className={`text-xs line-clamp-2 mb-2 font-medium ${
-                      isSelected ? 'text-slate-300' : 'text-slate-600'
+                      isSelected ? 'text-slate-700' : 'text-slate-600'
                     }`}>
                       {item.symptoms.join(', ') || item.diagnosis || 'Intake completed'}
                     </p>
@@ -554,7 +554,7 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
                   <button
                     type="button"
                     onClick={() => void openSummary(selectedConsultation)}
-                    className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer"
+                    className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer"
                   >
                     <span>📄 Open AI Summary Report</span>
                   </button>
@@ -571,19 +571,19 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
               </div>
 
               {/* Open Summary Option Banner */}
-              <div className="p-4 bg-slate-900 text-white rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
+              <div className="p-4 bg-slate-50 border border-slate-200 text-slate-900 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
                 <div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-300 block mb-0.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-0.5">
                     Pre-Consultation Clinical Intake
                   </span>
-                  <h4 className="text-xs font-bold text-white">
+                  <h4 className="text-xs font-bold text-slate-900">
                     SOCRATES Intake Report & Medical History Summary
                   </h4>
                 </div>
                 <button
                   type="button"
                   onClick={() => void openSummary(selectedConsultation)}
-                  className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-900 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shadow-sm"
+                  className="px-4 py-2 bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shadow-sm"
                 >
                   📄 Open Summary Report
                 </button>
@@ -672,7 +672,7 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
                   <button
                     onClick={handleTriageOverride}
                     disabled={isSavingTriage || !triageOverrideReason.trim()}
-                    className="rounded-xl bg-slate-900 hover:bg-slate-800 px-4 py-2 text-xs font-extrabold text-white disabled:opacity-50 transition-all cursor-pointer shadow-sm"
+                    className="rounded-xl bg-white hover:bg-slate-50 border border-slate-300 px-4 py-2 text-xs font-extrabold text-slate-800 disabled:opacity-50 transition-all cursor-pointer shadow-sm"
                   >
                     {isSavingTriage ? 'Saving...' : 'Save Triage'}
                   </button>
@@ -744,7 +744,7 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
                     type="button"
                     onClick={handleSignOff}
                     disabled={isSigningOff}
-                    className="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-extrabold uppercase tracking-wider shadow-md transition-all cursor-pointer disabled:opacity-50"
+                    className="px-6 py-3 bg-white hover:bg-slate-50 border border-slate-300 text-slate-900 rounded-xl text-xs font-extrabold uppercase tracking-wider shadow-sm transition-all cursor-pointer disabled:opacity-50"
                   >
                     {isSigningOff ? 'Signing Off...' : 'Sign Off & Complete Consultation'}
                   </button>
