@@ -5,6 +5,8 @@ export interface IConsultation extends Document {
   patientId: mongoose.Types.ObjectId;
   doctorId: mongoose.Types.ObjectId;
   symptoms?: string[];
+  chiefComplaint?: string;
+  socrates?: Record<string, string>;
   diagnosis?: string;
   treatmentPlan?: string;
   findings?: string;
@@ -28,6 +30,8 @@ const ConsultationSchema: Schema = new Schema({
   patientId: { type: Schema.Types.ObjectId, ref: 'Patient', required: true },
   doctorId: { type: Schema.Types.ObjectId, ref: 'Doctor', required: true },
   symptoms: { type: [String], default: [] },
+  chiefComplaint: { type: String, default: '' },
+  socrates: { type: Schema.Types.Mixed, default: {} },
   diagnosis: { type: String },
   treatmentPlan: { type: String },
   findings: { type: String },

@@ -712,6 +712,8 @@ router.post('/submit-to-doctor', async (req: Request, res: Response) => {
     const consultation = new Consultation({
       patientId: patient._id,
       doctorId: assignedDoctor._id,
+      chiefComplaint: chiefComplaint || symptomList[0] || 'General OPD',
+      socrates,
       symptoms: symptomList,
       diagnosis: `Draft Intake: ${chiefComplaint || 'General OPD'}`,
       treatmentPlan: isEmergency ? 'Immediate Emergency Clinical Evaluation & Vitals Stabilization' : 'Standard Outpatient Consultation',
