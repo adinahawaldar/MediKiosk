@@ -10,9 +10,9 @@ export default function App() {
   const [language, setLanguage] = useState<'en' | 'hi' | 'mr'>('en');
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col items-center w-full">
+    <div className={`min-h-screen text-slate-900 flex flex-col items-center w-full ${screen === 'doctor' ? 'bg-white' : 'bg-slate-100'}`}>
 
-      <main className="flex-1 w-full flex flex-col items-center justify-center p-4">
+      <main className={`flex-1 w-full flex flex-col items-center justify-center ${screen === 'doctor' ? 'p-0' : 'p-4'}`}>
         {screen === 'doctor' && (
           <DoctorDashboard onBackToKiosk={() => setScreen('welcome')} />
         )}

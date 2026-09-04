@@ -171,7 +171,7 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
   const routineCount = consultations.filter(c => c.priority === 'routine').length;
 
   return (
-    <div className="w-full max-w-7xl mx-auto min-h-screen bg-white text-slate-900 p-4 md:p-8 font-sans antialiased">
+    <div className="w-full min-h-screen bg-white text-slate-900 p-6 md:p-10 font-sans antialiased">
       
       {/* Top Bar with Refresh */}
       <div className="w-full flex justify-between items-center mb-2">
