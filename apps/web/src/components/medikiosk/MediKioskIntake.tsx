@@ -627,13 +627,7 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
               </div>
             )}
 
-            {/* DPDP Ephemeral Purge Badge */}
-            <div className="flex items-center justify-center space-x-2 text-[11px] text-slate-600 bg-slate-50 p-3 rounded-2xl font-semibold">
-              <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>Kiosk session data automatically wiped (DPDP Act 2023 compliant).</span>
-            </div>
-
-            {/* Doctor Summary PDF Button */}
+            {/* Subtle Optional PDF Download Link */}
             <button
               onClick={() => {
                 const primarySocrates = mappedSymptoms[0]?.additionalDetails?.socrates || {};
@@ -689,10 +683,10 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
                   ]
                 });
               }}
-              className="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center space-x-2"
+              className="text-xs font-semibold text-slate-500 hover:text-slate-900 transition-all cursor-pointer flex items-center justify-center space-x-1.5 py-1 hover:underline mx-auto"
             >
-              <Printer className="w-4 h-4 text-white" />
-              <span>Download Doctor Summary (PDF) →</span>
+              <Printer className="w-3.5 h-3.5 text-slate-400" />
+              <span>{getTx('Download Doctor Summary (PDF)')}</span>
             </button>
 
             {/* Large Finish Button */}
