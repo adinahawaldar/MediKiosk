@@ -166,10 +166,10 @@ export const generateSummaryHTMLString = (data: PatientSummaryData = DEFAULT_STA
     </tr>
     <tr style="border-bottom: 1px solid #000000; height: 16pt;">
       <td style="padding: 2px 6px; border-right: 1px solid #000000;">Discomfort</td>
-      <td style="padding: 2px 6px;">${isAmber ? 'Moderte' : isRed ? 'high' : 'normal'}</td>
+      <td style="padding: 2px 6px;">${isAmber ? 'Moderate' : isRed ? 'high' : 'normal'}</td>
     </tr>
     <tr style="height: 16pt;">
-      <td style="padding: 2px 6px; border-right: 1px solid #000000;">Shortness of breadth</td>
+      <td style="padding: 2px 6px; border-right: 1px solid #000000;">Shortness of breath</td>
       <td style="padding: 2px 6px;">${isRed ? 'high' : 'normal'}</td>
     </tr>
   `;
