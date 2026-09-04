@@ -171,55 +171,44 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
   const routineCount = consultations.filter(c => c.priority === 'routine').length;
 
   return (
-    <div className="w-full max-w-7xl mx-auto min-h-screen bg-gradient-to-b from-slate-100/90 via-slate-50 to-blue-50/20 text-slate-900 p-4 md:p-8 font-sans antialiased">
-      {/* Page Header (Clean Unboxed Heading) */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 pb-4 border-b border-slate-200/80">
-        <div>
-          <div className="flex items-center space-x-3">
-            <div className="w-2.5 h-8 bg-blue-600 rounded-full"></div>
-            <div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-0.5">
-                Clinical Outpatient Department
-              </span>
-              <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-                Doctor OPD Consultation Portal
-              </h1>
-            </div>
-          </div>
-        </div>
+    <div className="w-full max-w-7xl mx-auto min-h-screen bg-slate-50 text-slate-900 p-4 md:p-8 font-sans antialiased">
+      
+      {/* Top Bar with Refresh & Middle Headline */}
+      <div className="w-full flex justify-between items-center mb-2">
+        <div></div>
+        <button
+          type="button"
+          onClick={fetchQueue}
+          className="px-3.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm ml-auto"
+        >
+          Refresh Queue
+        </button>
+      </div>
 
-        <div className="flex items-center space-x-3 shrink-0">
-          <button
-            type="button"
-            onClick={fetchQueue}
-            className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm flex items-center space-x-1.5"
-          >
-            <span>Refresh Queue</span>
-          </button>
-          <button
-            type="button"
-            onClick={onBackToKiosk}
-            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-extrabold shadow-sm transition-all cursor-pointer"
-          >
-            Open Patient Kiosk →
-          </button>
-        </div>
+      {/* Centered Top Headline */}
+      <div className="w-full text-center mb-8">
+        <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight uppercase">
+          Doctor OPD Consultation Portal
+        </h1>
+        <p className="text-xs text-slate-500 font-medium mt-1">
+          Real-time Pre-Consultation AI Intake, SOCRATES Summaries & Emergency Triage
+        </p>
       </div>
 
       {error && (
-        <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl mb-4 font-bold">
+        <div className="p-3.5 bg-white border border-rose-200 text-rose-800 text-xs rounded-xl mb-4 font-bold shadow-sm">
           {error}
         </div>
       )}
 
-      {/* Metrics Row */}
+      {/* Metrics Row (Neutral Professional Boxes) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div
           onClick={() => setFilterPriority('all')}
           className={`p-4 rounded-2xl border cursor-pointer transition-all ${
             filterPriority === 'all'
               ? 'bg-slate-900 text-white border-slate-900 shadow-md'
-              : 'bg-white text-slate-800 border-slate-200 hover:border-slate-300'
+              : 'bg-white text-slate-900 border-slate-200 hover:border-slate-300 shadow-sm'
           }`}
         >
           <span className="text-[10px] font-black uppercase tracking-widest block opacity-75 mb-1">
@@ -232,15 +221,15 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
           onClick={() => setFilterPriority('emergency')}
           className={`p-4 rounded-2xl border cursor-pointer transition-all ${
             filterPriority === 'emergency'
-              ? 'bg-rose-600 text-white border-rose-600 shadow-md'
-              : 'bg-rose-50/80 text-rose-900 border-rose-200 hover:border-rose-300'
+              ? 'bg-slate-900 text-white border-slate-900 shadow-md'
+              : 'bg-white text-slate-900 border-slate-200 hover:border-slate-300 shadow-sm'
           }`}
         >
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-black uppercase tracking-widest block opacity-90">
+            <span className="text-[10px] font-black uppercase tracking-widest block opacity-75">
               Emergency Triage
             </span>
-            <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700">RED</span>
           </div>
           <span className="text-3xl font-black">{emergencyCount}</span>
         </div>
@@ -249,13 +238,16 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
           onClick={() => setFilterPriority('urgent')}
           className={`p-4 rounded-2xl border cursor-pointer transition-all ${
             filterPriority === 'urgent'
-              ? 'bg-amber-500 text-white border-amber-500 shadow-md'
-              : 'bg-amber-50/80 text-amber-900 border-amber-200 hover:border-amber-300'
+              ? 'bg-slate-900 text-white border-slate-900 shadow-md'
+              : 'bg-white text-slate-900 border-slate-200 hover:border-slate-300 shadow-sm'
           }`}
         >
-          <span className="text-[10px] font-black uppercase tracking-widest block opacity-90 mb-1">
-            Urgent Triage
-          </span>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] font-black uppercase tracking-widest block opacity-75">
+              Urgent Triage
+            </span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700">AMBER</span>
+          </div>
           <span className="text-3xl font-black">{urgentCount}</span>
         </div>
 
@@ -263,13 +255,16 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
           onClick={() => setFilterPriority('routine')}
           className={`p-4 rounded-2xl border cursor-pointer transition-all ${
             filterPriority === 'routine'
-              ? 'bg-emerald-600 text-white border-emerald-600 shadow-md'
-              : 'bg-emerald-50/80 text-emerald-900 border-emerald-200 hover:border-emerald-300'
+              ? 'bg-slate-900 text-white border-slate-900 shadow-md'
+              : 'bg-white text-slate-900 border-slate-200 hover:border-slate-300 shadow-sm'
           }`}
         >
-          <span className="text-[10px] font-black uppercase tracking-widest block opacity-90 mb-1">
-            Routine Triage
-          </span>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] font-black uppercase tracking-widest block opacity-75">
+              Routine Triage
+            </span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700">GREEN</span>
+          </div>
           <span className="text-3xl font-black">{routineCount}</span>
         </div>
       </div>
@@ -298,8 +293,6 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
             <div className="overflow-y-auto space-y-3 flex-1 pr-1 scrollbar-thin">
               {filteredQueue.map((item) => {
                 const isSelected = selectedConsultation?._id === item._id;
-                const isRed = item.priority === 'emergency';
-                const isAmber = item.priority === 'urgent';
 
                 return (
                   <div
@@ -308,11 +301,7 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
                     className={`p-4 rounded-xl border transition-all cursor-pointer ${
                       isSelected
                         ? 'border-slate-900 bg-slate-900 text-white shadow-md'
-                        : isRed
-                        ? 'border-rose-200 bg-rose-50/70 hover:bg-rose-100/70 text-slate-900'
-                        : isAmber
-                        ? 'border-amber-200 bg-amber-50/70 hover:bg-amber-100/70 text-slate-900'
-                        : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-900'
+                        : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-900 shadow-sm'
                     }`}
                   >
                     <div className="flex justify-between items-start mb-2">
@@ -327,11 +316,7 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
                         </span>
                       </div>
                       <span className={`text-[10px] px-2.5 py-0.5 rounded font-black uppercase tracking-wider ${
-                        isRed
-                          ? 'bg-rose-600 text-white'
-                          : isAmber
-                          ? 'bg-amber-500 text-white'
-                          : 'bg-emerald-600 text-white'
+                        isSelected ? 'bg-slate-800 text-slate-200 border border-slate-700' : 'bg-slate-100 border border-slate-200 text-slate-700'
                       }`}>
                         {item.priority}
                       </span>
@@ -375,13 +360,7 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
                 </div>
 
                 <div className="flex items-center space-x-2">
-                  <span className={`px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider border ${
-                    selectedConsultation.priority === 'emergency'
-                      ? 'bg-rose-100 border-rose-300 text-rose-900'
-                      : selectedConsultation.priority === 'urgent'
-                      ? 'bg-amber-100 border-amber-300 text-amber-900'
-                      : 'bg-emerald-100 border-emerald-300 text-emerald-900'
-                  }`}>
+                  <span className="px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider border bg-slate-100 border-slate-200 text-slate-800">
                     {selectedConsultation.priority} TRIAGE
                   </span>
                 </div>
@@ -389,31 +368,27 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
 
               {/* Safety Alert Banner */}
               {selectedConsultation.triageNotes && (
-                <div className={`p-4 rounded-xl border ${
-                  selectedConsultation.priority === 'emergency'
-                    ? 'bg-rose-50 border-rose-300 text-rose-900'
-                    : 'bg-slate-50 border-slate-200 text-slate-800'
-                }`}>
-                  <span className="text-[10px] font-black uppercase tracking-widest block mb-1 text-rose-700">
-                    {selectedConsultation.priority === 'emergency' ? 'CRITICAL SAFETY ALERT' : 'Clinical Intake Notes'}
+                <div className="p-4 rounded-xl border bg-white border-slate-200 text-slate-900 shadow-sm">
+                  <span className="text-[10px] font-black uppercase tracking-widest block mb-1 text-slate-500">
+                    Clinical Intake Notes
                   </span>
                   <p className="text-xs font-semibold leading-relaxed">{selectedConsultation.triageNotes}</p>
                 </div>
               )}
 
               {/* Triage Adjustment Section */}
-              <div className="p-4 rounded-xl border border-indigo-200 bg-indigo-50/60 space-y-3">
+              <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-sm space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-xs font-black uppercase tracking-wider text-indigo-950">
-                    Triage Score: <span className="text-indigo-700">{selectedConsultation.triageScore ?? 0}/100</span>
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-900">
+                    Triage Score: <span className="text-slate-700">{selectedConsultation.triageScore ?? 0}/100</span>
                   </span>
-                  <span className="text-[10px] text-indigo-700 font-medium">Physician override logged</span>
+                  <span className="text-[10px] text-slate-500 font-medium">Physician override logged</span>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2">
                   <select
                     value={triageOverride}
                     onChange={(e) => setTriageOverride(e.target.value as any)}
-                    className="rounded-xl border border-indigo-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-slate-800"
                   >
                     <option value="emergency">Emergency / RED</option>
                     <option value="urgent">Urgent / AMBER</option>
@@ -423,27 +398,27 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
                     value={triageOverrideReason}
                     onChange={(e) => setTriageOverrideReason(e.target.value)}
                     placeholder="Reason for triage adjustment..."
-                    className="flex-1 rounded-xl border border-indigo-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500"
+                    className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-800"
                   />
                   <button
                     onClick={handleTriageOverride}
                     disabled={isSavingTriage || !triageOverrideReason.trim()}
-                    className="rounded-xl bg-indigo-700 hover:bg-indigo-600 px-4 py-2 text-xs font-extrabold text-white disabled:opacity-50 transition-all cursor-pointer shadow-sm"
+                    className="rounded-xl bg-slate-900 hover:bg-slate-800 px-4 py-2 text-xs font-extrabold text-white disabled:opacity-50 transition-all cursor-pointer shadow-sm"
                   >
                     {isSavingTriage ? 'Saving...' : 'Save Triage'}
                   </button>
                 </div>
               </div>
 
-              {/* Structured SOAP Clinical Report */}
+              {/* Structured SOAP Clinical Report (Uniform Neutral Boxes) */}
               <div className="space-y-4">
                 <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 border-b border-slate-200 pb-2">
                   AI Pre-Consultation Intake Report (SOAP)
                 </h3>
 
                 {/* S - Subjective */}
-                <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-100 text-xs space-y-2">
-                  <span className="font-extrabold text-indigo-700 uppercase tracking-wider block text-[11px]">
+                <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-sm text-xs space-y-2">
+                  <span className="font-extrabold text-slate-900 uppercase tracking-wider block text-[11px]">
                     [S] Subjective & SOCRATES Breakdown
                   </span>
                   <div className="text-slate-800 whitespace-pre-line font-medium leading-relaxed">
@@ -452,8 +427,8 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
                 </div>
 
                 {/* O - Objective */}
-                <div className="p-4 bg-teal-50/50 rounded-xl border border-teal-100 text-xs space-y-1">
-                  <span className="font-extrabold text-teal-700 uppercase tracking-wider block text-[11px]">
+                <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-sm text-xs space-y-1">
+                  <span className="font-extrabold text-slate-900 uppercase tracking-wider block text-[11px]">
                     [O] Objective Kiosk Vitals & Data
                   </span>
                   <p className="text-slate-700 font-medium">
@@ -462,8 +437,8 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
                 </div>
 
                 {/* A - Assessment */}
-                <div className="p-4 bg-amber-50/50 rounded-xl border border-amber-100 text-xs space-y-1">
-                  <span className="font-extrabold text-amber-800 uppercase tracking-wider block text-[11px]">
+                <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-sm text-xs space-y-1">
+                  <span className="font-extrabold text-slate-900 uppercase tracking-wider block text-[11px]">
                     [A] AI Clinical Assessment & Triage
                   </span>
                   <p className="text-slate-800 font-medium whitespace-pre-line">
@@ -472,8 +447,8 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
                 </div>
 
                 {/* P - Plan */}
-                <div className="p-4 bg-rose-50/50 rounded-xl border border-rose-100 text-xs space-y-1">
-                  <span className="font-extrabold text-rose-800 uppercase tracking-wider block text-[11px]">
+                <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-sm text-xs space-y-1">
+                  <span className="font-extrabold text-slate-900 uppercase tracking-wider block text-[11px]">
                     [P] Care Plan & Disposition
                   </span>
                   <p className="text-slate-800 font-medium whitespace-pre-line">
@@ -492,7 +467,7 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
                   value={doctorNotes}
                   onChange={(e) => setDoctorNotes(e.target.value)}
                   placeholder="Enter physician diagnosis, prescription orders, or discharge remarks..."
-                  className="w-full p-3.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-800 resize-none"
+                  className="w-full p-3.5 bg-white border border-slate-300 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-800 resize-none"
                 />
 
                 <div className="flex justify-end space-x-3">
