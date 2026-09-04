@@ -131,7 +131,7 @@ export const Welcome: React.FC<WelcomeProps> = ({
   };
 
   return (
-    <div className="w-full max-w-xl mx-auto text-slate-900 p-6 flex flex-col justify-between items-center text-center min-h-[520px] max-h-[88vh] overflow-y-auto font-sans select-none animate-in fade-in duration-300 scrollbar-thin">
+    <div className="w-full max-w-xl mx-auto text-slate-900 p-6 flex flex-col justify-between items-center text-center font-sans select-none animate-in fade-in duration-300">
       
       {/* Main Headline */}
       <div className="space-y-2 max-w-lg mx-auto mb-2">
@@ -244,15 +244,12 @@ export const Welcome: React.FC<WelcomeProps> = ({
         </div>
       </div>
 
-      {/* Local Demo Portals Section (Scrollable at Bottom) */}
-      <div className="w-full pt-6 mt-6 border-t border-slate-200 space-y-3 shrink-0">
+      {/* Local Demo Portals Section (White buttons with light black border) */}
+      <div className="w-full pt-8 mt-8 border-t border-slate-200 space-y-3 shrink-0">
         <div className="text-center space-y-0.5">
           <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-            Demo Dashboards & Portals
+            Demo Portals & Dashboards
           </p>
-          <h2 className="text-xs font-bold text-slate-700">
-            Direct Local Access
-          </h2>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
@@ -260,17 +257,17 @@ export const Welcome: React.FC<WelcomeProps> = ({
           <button
             type="button"
             onClick={() => onStartIntake && onStartIntake('touch')}
-            className="p-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-left transition-all duration-200 shadow-md flex items-center space-x-3 cursor-pointer group"
+            className="p-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-800 text-slate-900 text-left transition-all duration-200 shadow-sm flex items-center space-x-3 cursor-pointer group"
           >
-            <div className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center text-emerald-400 group-hover:bg-slate-700 shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-800 group-hover:bg-slate-900 group-hover:text-white transition-colors shrink-0">
               <User className="w-5 h-5" />
             </div>
             <div>
-              <span className="text-xs font-black block text-white">
+              <span className="text-xs font-black block text-slate-900 uppercase tracking-wider">
                 Patient Kiosk Portal
               </span>
-              <span className="text-[10px] text-slate-300 block font-medium">
-                Open Patient 3D Intake →
+              <span className="text-[10px] text-slate-500 block font-medium mt-0.5">
+                Launch Patient 3D Intake →
               </span>
             </div>
           </button>
@@ -279,17 +276,17 @@ export const Welcome: React.FC<WelcomeProps> = ({
           <button
             type="button"
             onClick={() => onOpenDoctorDashboard && onOpenDoctorDashboard()}
-            className="p-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white text-left transition-all duration-200 shadow-md flex items-center space-x-3 cursor-pointer group"
+            className="p-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-800 text-slate-900 text-left transition-all duration-200 shadow-sm flex items-center space-x-3 cursor-pointer group"
           >
-            <div className="w-9 h-9 rounded-xl bg-blue-700 flex items-center justify-center text-white group-hover:bg-blue-600 shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-800 group-hover:bg-slate-900 group-hover:text-white transition-colors shrink-0">
               <Stethoscope className="w-5 h-5" />
             </div>
             <div>
-              <span className="text-xs font-black block text-white">
+              <span className="text-xs font-black block text-slate-900 uppercase tracking-wider">
                 Doctor Dashboard
               </span>
-              <span className="text-[10px] text-blue-100 block font-medium">
-                Open Physician Queue →
+              <span className="text-[10px] text-slate-500 block font-medium mt-0.5">
+                Launch Physician Queue →
               </span>
             </div>
           </button>
