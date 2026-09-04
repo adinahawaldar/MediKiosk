@@ -40,6 +40,8 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
   // Patient Session State
   const [patientProfile, setPatientProfile] = useState<any>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [historyMode, setHistoryMode] = useState<'allopathy' | 'ayush'>('allopathy');
+  const [temperature, setTemperature] = useState('');
 
   // States
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -195,7 +197,8 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
         body: JSON.stringify({
           patientProfile,
           language: activeLangCode,
-          mode: 'allopathy',
+          mode: historyMode,
+          vitals: { temperature: temperature ? Number(temperature) : undefined },
         }),
       });
       const data = await res.json();
@@ -251,6 +254,10 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
   const handleSubmitAssessment = async () => {
     setIsSubmitting(true);
     try {
+      const mergedAyushHistory = mappedSymptoms.reduce<Record<string, string>>((merged, symptom) => ({
+        ...merged,
+        ...(symptom.additionalDetails?.ayush || {}),
+      }), {});
       const res = await fetch('/api/v1/medikiosk/assessment/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -280,9 +287,12 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
                 duration: mappedSymptoms[0]?.duration || 'Today',
                 radiation: mappedSymptoms[0]?.additionalDetails?.radiates ? mappedSymptoms[0]?.additionalDetails?.radiatesTo : 'None',
               },
+              historyMode,
+              ayushHistory: historyMode === 'ayush' ? mergedAyushHistory : {},
               symptoms: mappedSymptoms,
               triage: data.data.triage || 'GREEN',
               redFlags: data.data.redFlags || [],
+              vitals: { temperature: temperature ? Number(temperature) : undefined },
             }),
           });
         } catch (dbErr) {
@@ -326,6 +336,8 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
     setSessionId(null);
     setMappedSymptoms([]);
     setSummaryData(null);
+    setHistoryMode('allopathy');
+    setTemperature('');
     setOtpSent(false);
     setStep('ABHA_AUTH');
     if (onBackToWelcome) {
@@ -464,6 +476,18 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
               <span>I authorize HospitalOS to access health records for this consultation.</span>
             </div>
 
+            <div className="text-left">
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-2">History mode</p>
+              <div className="grid grid-cols-2 gap-2">
+                {(['allopathy', 'ayush'] as const).map((mode) => <button key={mode} type="button" onClick={() => setHistoryMode(mode)} className={`rounded-xl border p-3 text-left text-xs font-bold ${historyMode === mode ? 'border-indigo-600 bg-indigo-50 text-indigo-900' : 'border-slate-200 bg-white text-slate-600'}`}><span className="block">{mode === 'ayush' ? 'AYUSH' : 'Allopathy'}</span><span className="text-[10px] font-medium opacity-70">{mode === 'ayush' ? 'Prakriti & lifestyle' : 'SOCRATES history'}</span></button>)}
+              </div>
+            </div>
+
+            <div className="text-left">
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-2">Optional current temperature</p>
+              <input type="number" step="0.1" value={temperature} onChange={(e) => setTemperature(e.target.value)} placeholder="Temperature °C or °F (optional)" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs" />
+            </div>
+
             <button
               onClick={handleConfirmAndStart}
               disabled={isLoading}
@@ -495,6 +519,8 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
                 initialSymptom={activeRegion.initialSymptom}
                 mappedSymptoms={mappedSymptoms}
                 existingSymptom={mappedSymptoms.find(s => s.bodyRegion === activeRegion.id)}
+                mode={historyMode}
+                language={activeLangCode as 'en' | 'hi' | 'mr'}
                 onSaveSymptom={handleSaveSymptom}
                 onSaveMultiSymptoms={(updated) => {
                   setMappedSymptoms(updated);

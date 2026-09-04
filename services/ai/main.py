@@ -1,10 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import datetime
+from pathlib import Path
 from dotenv import load_dotenv
 
 # Load environment variables
-load_dotenv()
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 from agents.reception import router as reception_router
 from agents.consultation import router as consultation_router

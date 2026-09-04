@@ -1,5 +1,6 @@
 import os
 import json
+import re
 import logging
 from typing import Dict, Any, List, Optional
 from .llm import call_llm
@@ -277,6 +278,7 @@ def extract_ocr_document(
         '    { "test": "HbA1c", "result": "8.2%", "unit": "%", "referenceRange": "< 5.7%", "isAbnormal": true }\n'
         '  ],\n'
         '  "abnormalLabFlags": ["ELEVATED: HbA1c 8.2% (Reference < 5.7%)"],\n'
+        '  "extractedVitals": { "temperature": "", "bloodPressure": "", "bloodSugar": "", "spo2": "", "pulse": "", "recordedAt": "" },\n'
         '  "summary": "1-sentence summary of findings."\n'
         "}"
     )
@@ -316,6 +318,19 @@ def extract_ocr_document(
             labs.append({"test": "Serum Creatinine", "result": "1.5", "unit": "mg/dL", "referenceRange": "0.6-1.2 mg/dL", "isAbnormal": True})
             abnormal_flags.append("ELEVATED: Serum Creatinine 1.5 mg/dL (Reference 0.6-1.2)")
 
+        def find_value(pattern: str) -> str:
+            match = re.search(pattern, document_content, flags=re.IGNORECASE)
+            return match.group(1).strip() if match else ""
+
+        extracted_vitals = {
+            "temperature": find_value(r"(?:temperature|temp)\s*[:\-]?\s*([0-9]+(?:\.[0-9]+)?\s*(?:°?F|°?C)?)"),
+            "bloodPressure": find_value(r"(?:blood pressure|\bBP\b)\s*[:\-]?\s*(\d{2,3}\s*/\s*\d{2,3})"),
+            "bloodSugar": find_value(r"(?:blood sugar|fasting sugar|glucose)\s*[:\-]?\s*([0-9]+(?:\.[0-9]+)?\s*(?:mg/dL)?)"),
+            "spo2": find_value(r"(?:SpO2|oxygen saturation)\s*[:\-]?\s*([0-9]{2,3}\s*%?)"),
+            "pulse": find_value(r"(?:pulse|heart rate)\s*[:\-]?\s*([0-9]{2,3}\s*(?:bpm)?)"),
+            "recordedAt": find_value(r"(?:date|dated)\s*[:\-]?\s*([0-9]{1,2}[/-][0-9]{1,2}[/-][0-9]{2,4})"),
+        }
+
         if not labs and ("high" in text_lower or "elevated" in text_lower or "abnormal" in text_lower):
             labs.append({"test": "Blood Glucose (Fasting)", "result": "165", "unit": "mg/dL", "referenceRange": "70-99 mg/dL", "isAbnormal": True})
             abnormal_flags.append("ELEVATED: Blood Glucose (Fasting) 165 mg/dL")
@@ -326,6 +341,7 @@ def extract_ocr_document(
             "extractedLabValues": labs if labs else [
                 {"test": "Serum Creatinine", "result": "0.9", "unit": "mg/dL", "referenceRange": "0.6-1.2", "isAbnormal": False}
             ],
+            "extractedVitals": extracted_vitals,
             "abnormalLabFlags": abnormal_flags,
             "pageCount": max(1, page_count),
             "summary": f"Multi-page OCR extracted from {doc_type}. {len(abnormal_flags)} abnormal lab values flagged.",

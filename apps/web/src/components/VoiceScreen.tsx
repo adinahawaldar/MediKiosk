@@ -27,7 +27,11 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
 
   const [socratesQuestions, setSocratesQuestions] = useState<SocratesQuestion[]>([]);
   const [socratesAnswers, setSocratesAnswers] = useState<Record<string, string>>({});
+  const [socratesRawAnswers, setSocratesRawAnswers] = useState<Record<string, string>>({});
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState<number>(0);
+  const [isNormalizingAnswer, setIsNormalizingAnswer] = useState<boolean>(false);
+  const [socratesError, setSocratesError] = useState<string>('');
+  const [lastAcceptedAnswer, setLastAcceptedAnswer] = useState<{ questionIdx: number; raw: string; normalized: string; answers: Record<string, string>; rawAnswers: Record<string, string> } | null>(null);
 
   const [ticketInfo, setTicketInfo] = useState<{
     opdToken: string;
@@ -98,7 +102,10 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
     setResponseText('');
     setSocratesQuestions([]);
     setSocratesAnswers({});
+    setSocratesRawAnswers({});
     setCurrentQuestionIdx(0);
+    setLastAcceptedAnswer(null);
+    setSocratesError('');
     setTicketInfo(null);
     fullSpokenTextRef.current = '';
 
@@ -117,7 +124,10 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
     setResponseText('');
     setSocratesQuestions([]);
     setSocratesAnswers({});
+    setSocratesRawAnswers({});
     setCurrentQuestionIdx(0);
+    setLastAcceptedAnswer(null);
+    setSocratesError('');
     setTicketInfo(null);
     fullSpokenTextRef.current = '';
 
@@ -234,6 +244,10 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
     try {
       let base64Audio = '';
 
+      const recordedAudio = audioBlob;
+      // Browser speech recognition already provides the transcript. Avoid
+      // sending a large audio payload when text is available.
+      if (recordedAudio && !spokenText) {
       if (audioBlob) {
         const targetBlob = audioBlob;
         base64Audio = await new Promise<string>((resolve) => {
@@ -246,6 +260,7 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
             resolve(res);
           };
 
+          reader.readAsDataURL(recordedAudio);
           reader.readAsDataURL(targetBlob);
         });
       }
@@ -359,7 +374,8 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
 
   const submitDoctorConsultation = async (
     complaint: string,
-    socratesMap: Record<string, string>
+    socratesMap: Record<string, string>,
+    socratesRawMap: Record<string, string> = {}
   ) => {
     setIsSubmittingToDoctor(true);
 
@@ -407,6 +423,7 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
 
             chiefComplaint: complaint,
             socrates: socratesMap,
+            socratesRaw: socratesRawMap,
 
             symptoms: [
               complaint,
@@ -444,10 +461,12 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
       (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
+      setSocratesError(localized('I could not recognize that answer. Tap the microphone to retry or choose an option.'));
       return;
     }
 
     try {
+      setSocratesError('');
       if (socratesRecognitionRef.current) {
         try {
           socratesRecognitionRef.current.abort();
@@ -485,7 +504,7 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
         const finalResult = event.results[event.results.length - 1];
         if (finalResult?.isFinal && cleanAnswer && !socratesAnswerHandledRef.current) {
           socratesAnswerHandledRef.current = true;
-          handleAnswerSocrates(cleanAnswer);
+          void handleAnswerSocrates(cleanAnswer, true);
         }
       };
 
@@ -495,6 +514,7 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
       recognition.onerror = (event: any) => {
         setIsSocratesListening(false);
         socratesRecognitionRef.current = null;
+        setSocratesError(event?.error === 'not-allowed' ? localized('Microphone permission is required. Tap an option or allow microphone access and retry.') : localized('I could not recognize that answer. Tap the microphone to retry or choose an option.'));
         console.warn('SOCRATES answer recognition error:', event?.error || 'unknown');
       };
       recognition.onend = () => {
@@ -506,6 +526,7 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
       recognition.start();
     } catch (error) {
       setIsSocratesListening(false);
+      setSocratesError(localized('I could not recognize that answer. Tap the microphone to retry or choose an option.'));
       console.warn('SOCRATES answer microphone error:', error);
     }
   };
@@ -519,6 +540,7 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
     window.speechSynthesis.cancel();
     setIsSpeaking(true);
     setLiveTranscript('');
+    setSocratesError('');
 
     const utterance = new SpeechSynthesisUtterance(question);
     const voices = window.speechSynthesis.getVoices();
@@ -549,7 +571,37 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
     window.speechSynthesis.speak(utterance);
   };
 
-  const handleAnswerSocrates = (option: string) => {
+  const localized = (english: string) => {
+    if (language === 'hi') {
+      if (english.startsWith('I heard')) return `मैंने सुना: “${english.slice(english.indexOf('“') + 1, -1)}”`;
+      if (english.includes('Processing')) return 'जवाब समझ रहे हैं...';
+      if (english.includes('could not recognize')) return 'जवाब समझ नहीं आया। दोबारा बोलें या कोई विकल्प चुनें।';
+      if (english.includes('Microphone permission')) return 'माइक्रोफोन की अनुमति चाहिए। दोबारा कोशिश करें या कोई विकल्प चुनें।';
+    }
+    if (language === 'mr') {
+      if (english.startsWith('I heard')) return `मी ऐकले: “${english.slice(english.indexOf('“') + 1, -1)}”`;
+      if (english.includes('Processing')) return 'उत्तर समजून घेत आहोत...';
+      if (english.includes('could not recognize')) return 'उत्तर समजले नाही. पुन्हा बोला किंवा पर्याय निवडा.';
+      if (english.includes('Microphone permission')) return 'मायक्रोफोनची परवानगी आवश्यक आहे. पुन्हा प्रयत्न करा किंवा पर्याय निवडा.';
+    }
+    return english;
+  };
+
+  const normalizeSocratesAnswer = async (question: SocratesQuestion, transcript: string) => {
+    try {
+      const response = await fetchWithTimeout('/api/v1/voice/socrates-answer', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ questionId: question.id, question: question.question, options: question.options, transcript, language }),
+      }, 10000);
+      const json = await response.json();
+      if (response.ok && json.success && json.data?.normalizedAnswer) return String(json.data.normalizedAnswer);
+    } catch (error) {
+      console.warn('SOCRATES normalization unavailable; preserving raw transcript:', error);
+    }
+    return transcript;
+  };
+
+  const handleAnswerSocrates = async (option: string, fromVoice = false) => {
     const q = socratesQuestions[currentQuestionIdx];
     if (!q) {
       socratesAnswerHandledRef.current = true;
@@ -567,13 +619,26 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
     setIsSocratesListening(false);
     window.speechSynthesis?.cancel();
     setIsSpeaking(false);
+    setSocratesError('');
+
+    const rawAnswer = option.trim();
+    setLiveTranscript(rawAnswer);
+    setIsNormalizingAnswer(fromVoice);
+    const normalizedAnswer = fromVoice ? await normalizeSocratesAnswer(q, rawAnswer) : rawAnswer;
+    setIsNormalizingAnswer(false);
 
     const updated = {
       ...socratesAnswers,
-      [q.id]: option,
+      [q.id]: normalizedAnswer,
+    };
+    const updatedRaw = {
+      ...socratesRawAnswers,
+      [q.id]: rawAnswer,
     };
 
     setSocratesAnswers(updated);
+    setSocratesRawAnswers(updatedRaw);
+    setLastAcceptedAnswer({ questionIdx: currentQuestionIdx, raw: rawAnswer, normalized: normalizedAnswer, answers: socratesAnswers, rawAnswers: socratesRawAnswers });
 
     if (
       currentQuestionIdx + 1 <
@@ -587,11 +652,29 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
     } else {
       submitDoctorConsultation(
         finalTranscript,
-        updated
+        updated,
+        updatedRaw
       );
 
       setStatus('done');
     }
+  };
+
+  const undoLastSocratesAnswer = () => {
+    if (!lastAcceptedAnswer) return;
+    window.speechSynthesis?.cancel();
+    if (socratesRecognitionRef.current) {
+      try { socratesRecognitionRef.current.abort(); } catch (e) {}
+      socratesRecognitionRef.current = null;
+    }
+    setSocratesAnswers(lastAcceptedAnswer.answers);
+    setSocratesRawAnswers(lastAcceptedAnswer.rawAnswers);
+    setCurrentQuestionIdx(lastAcceptedAnswer.questionIdx);
+    setLiveTranscript(lastAcceptedAnswer.raw);
+    setSocratesError('');
+    setLastAcceptedAnswer(null);
+    setStatus('socrates');
+    speakSocratesQuestion(socratesQuestions[lastAcceptedAnswer.questionIdx].question);
   };
 
   const speakSpeechSynthesis = (
@@ -723,7 +806,7 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
                     {socratesQuestions.length}
                   </span>
 
-                  <h2 className="text-xl font-extrabold text-slate-900 pt-2">
+                <h2 className="text-xl font-extrabold text-slate-900 pt-2">
                     {
                       socratesQuestions[
                         currentQuestionIdx
@@ -731,6 +814,14 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
                     }
                   </h2>
                 </div>
+
+                {(liveTranscript || lastAcceptedAnswer || isNormalizingAnswer || socratesError) && (
+                  <div className={`rounded-xl border p-3 text-left text-sm ${socratesError ? 'border-rose-200 bg-rose-50 text-rose-800' : 'border-indigo-200 bg-indigo-50 text-indigo-900'}`}>
+                    {socratesError ? <p className="font-semibold">{socratesError}</p> : isNormalizingAnswer ? <p className="font-semibold">{language === 'hi' ? 'जवाब समझ रहे हैं...' : language === 'mr' ? 'उत्तर समजून घेत आहोत...' : 'Processing answer...'}</p> : <p><span className="font-bold">{language === 'hi' ? 'मैंने सुना:' : language === 'mr' ? 'मी ऐकले:' : 'I heard:'}</span> “{lastAcceptedAnswer?.raw || liveTranscript}”</p>}
+                    {isSocratesListening && <p className="mt-1 text-xs font-medium opacity-75">{language === 'hi' ? 'सुन रहे हैं...' : language === 'mr' ? 'ऐकत आहोत...' : 'Listening...'}</p>}
+                    {lastAcceptedAnswer && !isNormalizingAnswer && !socratesError && <button type="button" onClick={undoLastSocratesAnswer} className="mt-2 inline-flex min-h-11 items-center rounded-lg bg-white px-3 text-xs font-bold text-indigo-800 border border-indigo-200">{language === 'hi' ? 'जवाब बदलें' : language === 'mr' ? 'उत्तर बदला' : 'Change answer'}</button>}
+                  </div>
+                )}
 
                 <div className="flex flex-col space-y-2.5 w-full max-w-sm mx-auto">
                   {socratesQuestions[
@@ -742,7 +833,8 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
                       onClick={() =>
                         handleAnswerSocrates(opt)
                       }
-                      className="w-full py-3.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-900 hover:text-white border border-slate-300 font-bold text-sm text-slate-800 transition-all cursor-pointer active:scale-95 text-center shadow-sm"
+                      disabled={isNormalizingAnswer}
+                      className="w-full min-h-12 py-3.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-900 hover:text-white border border-slate-300 font-bold text-sm text-slate-800 transition-all cursor-pointer active:scale-95 text-center shadow-sm disabled:opacity-50"
                     >
                       {opt}
                     </button>

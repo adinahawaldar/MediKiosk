@@ -35,6 +35,8 @@ export interface PatientSummaryData {
   allergies?: string[];
   prescriptions?: Array<{ medications: string[]; instructions: string; status: string; version?: number }>;
   ocrDocuments?: Array<{ fileName: string; documentType: string; summary: string; abnormalLabFlags?: string[] }>;
+  longitudinalSummary?: string;
+  timeline?: Array<{ date: string; type: string; title: string; details?: string }>;
 }
 
 export const DEFAULT_STATIC_SUMMARY_DATA: PatientSummaryData = {
@@ -147,6 +149,36 @@ export const generateSummaryHTMLString = (data: PatientSummaryData = DEFAULT_STA
   const severityVal = escapeHtml(getSocratesVal('severity') || 'Moderate');
   const onsetVal = escapeHtml(getSocratesVal('onset') || getSocratesVal('character') || 'Gradual');
 
+  <div class="section-title">Personal History:</div>
+  <div class="meta-grid">
+    <div>
+      Patient: <span class="field-val">${escapeHtml(data.patientName)}</span><br>
+      Initial AMPATH Visit: <span class="field-val">${data.initialVisitDate}</span>
+    </div>
+    <div>
+      Age: <span class="field-val">${data.age}</span><br>
+      Benefit Category: <span class="field-val">${data.benefitCategory}</span>
+    </div>
+    <div>
+      AMPATH ID: <span class="field-val">${data.ampathId}</span><br>
+      Care Site: <span class="field-val">${data.careSite}</span><br>
+      Marital Status: <span class="field-val">${data.maritalStatus}</span><br>
+      Number Of Children: <span class="field-val">${data.numChildren}</span>
+    </div>
+  </div>
+
+  <div class="section-title">Medical History:</div>
+  <table class="history-table">
+    ${data.medicalHistory
+      .map(
+        item => `
+      <tr>
+        <td style="width:250px;">${escapeHtml(item.condition)}</td>
+        <td style="width:140px;">${escapeHtml(item.date)}</td>
+      </tr>`
+      )
+      .join('')}
+  </table>
   const medicalHistoryRows = (data.medicalHistory && data.medicalHistory.length > 0)
     ? data.medicalHistory.map(item => `
         <div style="margin-bottom: 5px; font-weight: bold; font-size: 8.5pt; display: flex; justify-content: space-between; max-width: 440pt;">
@@ -329,6 +361,10 @@ export const generateSummaryHTMLString = (data: PatientSummaryData = DEFAULT_STA
         </tr>
     </table>
 
+  <div class="reminders-box">
+    <div class="reminders-title">Clinical Reminders & AI Pre-Consultation Notes:</div>
+    <ol class="reminders-list">
+      ${data.clinicalNotes.map(n => `<li>${escapeHtml(n)}</li>`).join('')}
     <!-- Risk / Red Flags Section -->
     <h2 style="font-size: 9.5pt; font-weight: bold; text-decoration: underline; margin-top: 10px; margin-bottom: 4px; font-family: 'Arial', sans-serif;">
         Risk/Red Flags:
