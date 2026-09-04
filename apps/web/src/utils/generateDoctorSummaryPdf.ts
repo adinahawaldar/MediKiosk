@@ -149,36 +149,6 @@ export const generateSummaryHTMLString = (data: PatientSummaryData = DEFAULT_STA
   const severityVal = escapeHtml(getSocratesVal('severity') || 'Moderate');
   const onsetVal = escapeHtml(getSocratesVal('onset') || getSocratesVal('character') || 'Gradual');
 
-  <div class="section-title">Personal History:</div>
-  <div class="meta-grid">
-    <div>
-      Patient: <span class="field-val">${escapeHtml(data.patientName)}</span><br>
-      Initial AMPATH Visit: <span class="field-val">${data.initialVisitDate}</span>
-    </div>
-    <div>
-      Age: <span class="field-val">${data.age}</span><br>
-      Benefit Category: <span class="field-val">${data.benefitCategory}</span>
-    </div>
-    <div>
-      AMPATH ID: <span class="field-val">${data.ampathId}</span><br>
-      Care Site: <span class="field-val">${data.careSite}</span><br>
-      Marital Status: <span class="field-val">${data.maritalStatus}</span><br>
-      Number Of Children: <span class="field-val">${data.numChildren}</span>
-    </div>
-  </div>
-
-  <div class="section-title">Medical History:</div>
-  <table class="history-table">
-    ${data.medicalHistory
-      .map(
-        item => `
-      <tr>
-        <td style="width:250px;">${escapeHtml(item.condition)}</td>
-        <td style="width:140px;">${escapeHtml(item.date)}</td>
-      </tr>`
-      )
-      .join('')}
-  </table>
   const medicalHistoryRows = (data.medicalHistory && data.medicalHistory.length > 0)
     ? data.medicalHistory.map(item => `
         <div style="margin-bottom: 5px; font-weight: bold; font-size: 8.5pt; display: flex; justify-content: space-between; max-width: 440pt;">
@@ -361,10 +331,6 @@ export const generateSummaryHTMLString = (data: PatientSummaryData = DEFAULT_STA
         </tr>
     </table>
 
-  <div class="reminders-box">
-    <div class="reminders-title">Clinical Reminders & AI Pre-Consultation Notes:</div>
-    <ol class="reminders-list">
-      ${data.clinicalNotes.map(n => `<li>${escapeHtml(n)}</li>`).join('')}
     <!-- Risk / Red Flags Section -->
     <h2 style="font-size: 9.5pt; font-weight: bold; text-decoration: underline; margin-top: 10px; margin-bottom: 4px; font-family: 'Arial', sans-serif;">
         Risk/Red Flags:
@@ -420,8 +386,8 @@ export const openDocGeneratorHtmlWindow = (_data: PatientSummaryData = DEFAULT_S
 export const downloadDoctorSummaryPdfDirect = async (
   data: PatientSummaryData = DEFAULT_STATIC_SUMMARY_DATA
 ): Promise<void> => {
+  const htmlContent = generateSummaryHTMLString(data);
   try {
-    const htmlContent = generateSummaryHTMLString(data);
     const res = await fetch('/api/v1/medikiosk/generate-pdf', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -434,22 +400,11 @@ export const downloadDoctorSummaryPdfDirect = async (
       const fileName = `Aethera_Clinical_Summary_${cleanId}.pdf`;
       const url = URL.createObjectURL(pdfBlob);
 
-      // 1. Direct Anchor Download
       const link = document.createElement('a');
       link.href = url;
       link.download = fileName;
       document.body.appendChild(link);
       link.click();
-
-      // 2. Open PDF preview in new window/tab as secondary download trigger
-      const newWin = window.open(url, '_blank');
-      if (!newWin && !document.hidden) {
-        // Fallback to window navigation if popup is blocked
-        const fallbackWin = window.open();
-        if (fallbackWin) {
-          fallbackWin.location.href = url;
-        }
-      }
 
       setTimeout(() => {
         if (document.body.contains(link)) {
@@ -457,14 +412,22 @@ export const downloadDoctorSummaryPdfDirect = async (
         }
       }, 5000);
       return;
-    } else {
-      const errBody = await res.json().catch(() => ({}));
-      console.error('PDF generation endpoint failed:', res.status, errBody);
-      alert(`PDF generation failed: ${errBody.error || 'Server error generating PDF'}`);
     }
   } catch (err: any) {
-    console.error('Backend PDF generation request error:', err);
-    alert(`Could not download PDF: ${err.message || 'Network error'}`);
+    console.warn('Backend PDF generation endpoint error, falling back to browser print:', err);
+  }
+
+  // Fallback to client-side window print/PDF download
+  const printWin = window.open('', '_blank');
+  if (printWin) {
+    printWin.document.write(htmlContent);
+    printWin.document.close();
+    printWin.focus();
+    setTimeout(() => {
+      printWin.print();
+    }, 300);
+  } else {
+    alert('Pop-up blocked! Please allow pop-ups for PDF generation and printing.');
   }
 };
 

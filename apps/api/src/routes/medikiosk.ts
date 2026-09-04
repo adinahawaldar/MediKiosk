@@ -708,22 +708,9 @@ router.post('/submit-to-doctor', async (req: Request, res: Response) => {
     let department = 'General Medicine';
     let consultationId = `CNS-${Math.floor(100000 + Math.random() * 900000)}`;
 
-    // 1. Find or create Patient in MongoDB
-    let patient = await Patient.findOne({ phone }).exec();
-    if (!patient) {
-      patient = new Patient({
-        firstName,
-        lastName,
-        gender: patientProfile?.gender || 'Other',
-        dateOfBirth: patientProfile?.age ? new Date(Date.now() - patientProfile.age * 365.25 * 24 * 3600 * 1000) : new Date('1990-01-01'),
-        phone,
-        email: patientProfile?.email || undefined,
-        address: patientProfile?.address || undefined,
-        medicalHistory: patientProfile?.medicalHistory || [],
-        allergies: patientProfile?.allergies || [],
-      });
-      await patient.save();
-    }
+    let patient = null;
+    let assignedDoctor = null;
+    let consultation: any = null;
 
     const symptomList = symptoms.length > 0
       ? symptoms.map((s: any) => typeof s === 'string'
@@ -731,35 +718,11 @@ router.post('/submit-to-doctor', async (req: Request, res: Response) => {
         : `${s.bodyRegion || ''}: ${s.symptom || ''} (${s.severity || 'moderate'})`.trim())
       : [chiefComplaint || 'Consultation Intake'];
     const triageAssessment = getTriageAssessment({ symptoms: symptoms as SymptomItem[], chiefComplaint, socrates, redFlags, vitals });
-
-    // 2. Assign Doctor based on Triage Specialty
-    let assignedDoctor = null;
     const isEmergency = triageAssessment.triage === 'RED';
-    if (isEmergency) {
-      assignedDoctor = await Doctor.findOne({ specialization: 'Cardiology', status: 'active' }).exec();
-    }
-    if (!assignedDoctor) {
-      assignedDoctor = await Doctor.findOne({ specialization: 'General Medicine', status: 'active' }).exec();
-    }
-    if (!assignedDoctor) {
-      assignedDoctor = await Doctor.findOne({ status: 'active' }).exec();
-    }
-    if (!assignedDoctor) {
-      assignedDoctor = new Doctor({
-        firstName: 'David',
-        lastName: 'Miller',
-        specialization: 'General Medicine',
-        department: 'Outpatient Clinic',
-        experience: 15,
-        consultationFee: 80,
-        status: 'active',
-      });
-      await assignedDoctor.save();
-    const isEmergency = triage === 'RED';
 
     if (isConnected) {
       // 1. Find or create Patient in MongoDB
-      let patient = await Patient.findOne({ phone }).exec();
+      patient = await Patient.findOne({ phone }).exec();
       if (!patient) {
         patient = new Patient({
           firstName,
@@ -777,7 +740,6 @@ router.post('/submit-to-doctor', async (req: Request, res: Response) => {
       patientId = String(patient._id);
 
       // 2. Assign Doctor based on Triage Specialty
-      let assignedDoctor = null;
       if (isEmergency) {
         assignedDoctor = await Doctor.findOne({ specialization: 'Cardiology', status: 'active' }).exec();
       }
@@ -816,37 +778,23 @@ router.post('/submit-to-doctor', async (req: Request, res: Response) => {
     const finalTriage = triageAssessment.triage === 'RED' ? 'emergency' : triageAssessment.triage === 'AMBER' ? 'urgent' : 'routine';
     const opdToken = isEmergency ? 'EMG-01' : `OPD-${Math.floor(100 + Math.random() * 900)}`;
 
-    // 4. Save Official Consultation Document in MongoDB
-    const consultation = new Consultation({
-      patientId: patient._id,
-      doctorId: assignedDoctor._id,
-      chiefComplaint: chiefComplaint || symptomList[0] || 'General OPD',
-      socrates,
-      historyMode,
-      ayushHistory,
-      vitals,
-      symptoms: symptomList,
-      diagnosis: `Draft Intake: ${chiefComplaint || 'General OPD'}`,
-      treatmentPlan: isEmergency ? 'Immediate Emergency Clinical Evaluation & Vitals Stabilization' : 'Standard Outpatient Consultation',
-      status: 'open',
-      priority: finalTriage,
-      triageScore: triageAssessment.score,
-      triageNotes: triageAssessment.reason,
-      triageAIEvaluated: true,
-      soapNotes,
-    });
-    await consultation.save();
-    if (isConnected) {
+    if (isConnected && patient && assignedDoctor) {
       // 4. Save Official Consultation Document in MongoDB
-      const consultation = new Consultation({
-        patientId,
-        doctorId,
+      consultation = new Consultation({
+        patientId: patient._id,
+        doctorId: assignedDoctor._id,
+        chiefComplaint: chiefComplaint || symptomList[0] || 'General OPD',
+        socrates,
+        historyMode,
+        ayushHistory,
+        vitals,
         symptoms: symptomList,
         diagnosis: `Draft Intake: ${chiefComplaint || 'General OPD'}`,
         treatmentPlan: isEmergency ? 'Immediate Emergency Clinical Evaluation & Vitals Stabilization' : 'Standard Outpatient Consultation',
         status: 'open',
-        priority,
-        triageNotes: redFlags.length > 0 ? redFlags.join('; ') : 'Kiosk intake completed with no critical flags',
+        priority: finalTriage,
+        triageScore: triageAssessment.score,
+        triageNotes: triageAssessment.reason,
         triageAIEvaluated: true,
         soapNotes,
       });
@@ -857,20 +805,14 @@ router.post('/submit-to-doctor', async (req: Request, res: Response) => {
     return res.status(201).json({
       success: true,
       data: {
-        consultationId: consultation._id,
-        patientId: patient._id,
-        doctorId: assignedDoctor._id,
-        doctorName: `Dr. ${assignedDoctor.firstName} ${assignedDoctor.lastName}`,
-        department: assignedDoctor.department,
-        priority: consultation.priority,
-        triageScore: consultation.triageScore,
-        triageReason: triageAssessment.reason,
-        consultationId,
-        patientId,
-        doctorId,
+        consultationId: consultation ? consultation._id : consultationId,
+        patientId: patient ? patient._id : patientId,
+        doctorId: assignedDoctor ? assignedDoctor._id : doctorId,
         doctorName,
         department,
-        priority,
+        priority: finalTriage,
+        triageScore: triageAssessment.score,
+        triageReason: triageAssessment.reason,
         opdToken,
         roomNumber: isEmergency ? 'Emergency Room 1' : 'Room 104 (OPD)',
         soapNotes,

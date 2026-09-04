@@ -483,11 +483,6 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
               </div>
             </div>
 
-            <div className="text-left">
-              <p className="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-2">Optional current temperature</p>
-              <input type="number" step="0.1" value={temperature} onChange={(e) => setTemperature(e.target.value)} placeholder="Temperature °C or °F (optional)" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs" />
-            </div>
-
             <button
               onClick={handleConfirmAndStart}
               disabled={isLoading}

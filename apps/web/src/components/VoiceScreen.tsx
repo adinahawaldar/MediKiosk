@@ -244,12 +244,9 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
     try {
       let base64Audio = '';
 
-      const recordedAudio = audioBlob;
       // Browser speech recognition already provides the transcript. Avoid
       // sending a large audio payload when text is available.
-      if (recordedAudio && !spokenText) {
-      if (audioBlob) {
-        const targetBlob = audioBlob;
+      if (audioBlob && !spokenText) {
         base64Audio = await new Promise<string>((resolve) => {
           const reader = new FileReader();
 
@@ -260,8 +257,7 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
             resolve(res);
           };
 
-          reader.readAsDataURL(recordedAudio);
-          reader.readAsDataURL(targetBlob);
+          reader.readAsDataURL(audioBlob);
         });
       }
 
