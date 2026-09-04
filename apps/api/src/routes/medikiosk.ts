@@ -3,8 +3,7 @@ import { translateTextWithSarvam } from '../services/sarvamTranslate.js';
 import { Consultation } from '../models/Consultation.js';
 import { Doctor } from '../models/Doctor.js';
 import { Patient } from '../models/Patient.js';
-import { translateTextWithSarvam } from '../services/sarvamTranslate';
-import { generatePdfFromHtml } from '../services/puppeteerPdf';
+import { generatePdfFromHtml } from '../services/puppeteerPdf.js';
 
 export interface SymptomItem {
   bodyRegion: string;
@@ -619,7 +618,9 @@ router.post('/submit-to-doctor', async (req: Request, res: Response) => {
 
     // 3. Synthesize Structured SOAP Notes from SOCRATES
     const symptomList = symptoms.length > 0
-      ? symptoms.map((s: any) => `${s.bodyRegion || ''}: ${s.symptom || ''} (${s.severity || 'moderate'})`.trim())
+      ? symptoms.map((s: any) => typeof s === 'string'
+        ? s
+        : `${s.bodyRegion || ''}: ${s.symptom || ''} (${s.severity || 'moderate'})`.trim())
       : [chiefComplaint || 'Consultation Intake'];
 
     const soapNotes = {

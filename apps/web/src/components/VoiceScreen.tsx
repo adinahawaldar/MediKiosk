@@ -1,4 +1,3 @@
-```tsx
 import React, { useState, useRef } from 'react';
 import MedicalAvatar from './MedicalAvatar';
 import { Mic, MicOff, ArrowLeft, RefreshCw } from 'lucide-react';
@@ -20,6 +19,7 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
   >('idle');
 
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
+  const [isSocratesListening, setIsSocratesListening] = useState<boolean>(false);
   const [liveTranscript, setLiveTranscript] = useState<string>('');
   const [finalTranscript, setFinalTranscript] = useState<string>('');
   const [responseText, setResponseText] = useState<string>('');
@@ -38,15 +38,39 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
   const [isSubmittingToDoctor, setIsSubmittingToDoctor] = useState<boolean>(false);
 
   const recognitionRef = useRef<any>(null);
+  const socratesRecognitionRef = useRef<any>(null);
+  const socratesAnswerHandledRef = useRef<boolean>(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const fullSpokenTextRef = useRef<string>('');
+
+  const fetchWithTimeout = async (
+    input: RequestInfo | URL,
+    init: RequestInit,
+    timeoutMs = 30000
+  ) => {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      return await fetch(input, { ...init, signal: controller.signal });
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+  };
 
   const handleExit = () => {
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
       } catch (e) {}
+    }
+
+    if (socratesRecognitionRef.current) {
+      try {
+        socratesRecognitionRef.current.abort();
+      } catch (e) {}
+      socratesRecognitionRef.current = null;
     }
 
     if (
@@ -66,6 +90,7 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
     }
 
     setIsSpeaking(false);
+    setIsSocratesListening(false);
     setStatus('idle');
     setLiveTranscript('');
     setFinalTranscript('');
@@ -157,6 +182,8 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
   };
 
   const stopAndProcess = async () => {
+    if (status !== 'listening') return;
+
     setStatus('loading');
 
     if (recognitionRef.current) {
@@ -174,17 +201,24 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
       await new Promise<void>((resolve) => {
         if (!mediaRecorderRef.current) return resolve();
 
-        mediaRecorderRef.current.onstop = () => {
+        const recorder = mediaRecorderRef.current;
+        const resolveOnce = () => {
+          window.clearTimeout(stopTimeoutId);
+          resolve();
+        };
+        const stopTimeoutId = window.setTimeout(resolveOnce, 3000);
+
+        recorder.onstop = () => {
           audioBlob = new Blob(audioChunksRef.current, {
             type: 'audio/wav',
           });
 
-          resolve();
+          resolveOnce();
         };
 
-        mediaRecorderRef.current.stop();
+        recorder.stop();
 
-        mediaRecorderRef.current.stream
+        recorder.stream
           .getTracks()
           .forEach((t) => t.stop());
       });
@@ -199,7 +233,10 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
     try {
       let base64Audio = '';
 
-      if (audioBlob) {
+      const recordedAudio = audioBlob;
+      // Browser speech recognition already provides the transcript. Avoid
+      // sending a large audio payload when text is available.
+      if (recordedAudio && !spokenText) {
         base64Audio = await new Promise<string>((resolve) => {
           const reader = new FileReader();
 
@@ -210,13 +247,11 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
             resolve(res);
           };
 
-          reader.readAsDataURL(audioBlob);
+          reader.readAsDataURL(recordedAudio);
         });
       }
 
-      const response = await fetch(
-        'http://localhost:5000/api/v1/voice/pipeline',
-        {
+      const response = await fetchWithTimeout('/api/v1/voice/pipeline', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -231,6 +266,12 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
 
       const data = await response.json();
 
+      if (!response.ok || !data.success) {
+        throw new Error(
+          data.error?.message || `Voice pipeline failed (${response.status})`
+        );
+      }
+
       if (data.success && data.data) {
         const aiText =
           data.data.responseText ||
@@ -244,9 +285,7 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
 
         // Fetch dynamic SOCRATES questions
         try {
-          const qRes = await fetch(
-            'http://localhost:5000/api/v1/medikiosk/questions',
-            {
+          const qRes = await fetchWithTimeout('/api/v1/medikiosk/questions', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -270,6 +309,10 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
 
             setCurrentQuestionIdx(0);
             setStatus('socrates');
+
+            speakSocratesQuestion(
+              qData.data.adaptiveQuestions[0].question
+            );
 
             return;
           }
@@ -348,9 +391,7 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
           ? 'AMBER'
           : 'GREEN';
 
-      const res = await fetch(
-        'http://localhost:5000/api/v1/medikiosk/submit-to-doctor',
-        {
+      const res = await fetchWithTimeout('/api/v1/medikiosk/submit-to-doctor', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -397,8 +438,135 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
     }
   };
 
+  const startSocratesAnswerListening = async () => {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      return;
+    }
+
+    try {
+      if (socratesRecognitionRef.current) {
+        try {
+          socratesRecognitionRef.current.abort();
+        } catch (e) {}
+        socratesRecognitionRef.current = null;
+      }
+
+      // Request permission explicitly before starting recognition. Some browsers
+      // reject recognition started immediately after speech synthesis otherwise.
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((track) => track.stop());
+
+      const recognition = new SpeechRecognition();
+      socratesAnswerHandledRef.current = false;
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang =
+        language === 'hi'
+          ? 'hi-IN'
+          : language === 'mr'
+          ? 'mr-IN'
+          : 'en-IN';
+
+      recognition.onresult = (event: any) => {
+        let answer = '';
+        for (let index = event.resultIndex; index < event.results.length; index += 1) {
+          answer += event.results[index][0].transcript;
+        }
+
+        const cleanAnswer = answer.trim();
+        if (cleanAnswer) {
+          setLiveTranscript(cleanAnswer);
+        }
+
+        const finalResult = event.results[event.results.length - 1];
+        if (finalResult?.isFinal && cleanAnswer && !socratesAnswerHandledRef.current) {
+          socratesAnswerHandledRef.current = true;
+          handleAnswerSocrates(cleanAnswer);
+        }
+      };
+
+      recognition.onstart = () => {
+        setIsSocratesListening(true);
+      };
+      recognition.onerror = (event: any) => {
+        setIsSocratesListening(false);
+        socratesRecognitionRef.current = null;
+        console.warn('SOCRATES answer recognition error:', event?.error || 'unknown');
+      };
+      recognition.onend = () => {
+        setIsSocratesListening(false);
+        socratesRecognitionRef.current = null;
+      };
+
+      socratesRecognitionRef.current = recognition;
+      recognition.start();
+    } catch (error) {
+      setIsSocratesListening(false);
+      console.warn('SOCRATES answer microphone error:', error);
+    }
+  };
+
+  const speakSocratesQuestion = (question: string) => {
+    if (!('speechSynthesis' in window)) {
+      startSocratesAnswerListening();
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+    setIsSpeaking(true);
+    setLiveTranscript('');
+
+    const utterance = new SpeechSynthesisUtterance(question);
+    const voices = window.speechSynthesis.getVoices();
+    const selectedVoice = voices.find((voice) =>
+      language === 'hi'
+        ? voice.lang.toLowerCase().includes('hi')
+        : language === 'mr'
+        ? voice.lang.toLowerCase().includes('mr')
+        : voice.lang.toLowerCase().includes('en')
+    ) || voices[0];
+
+    if (selectedVoice) {
+      utterance.voice = selectedVoice;
+    }
+
+    utterance.rate = 0.9;
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      window.setTimeout(() => {
+        void startSocratesAnswerListening();
+      }, 250);
+    };
+    utterance.onerror = () => {
+      setIsSpeaking(false);
+      void startSocratesAnswerListening();
+    };
+
+    window.speechSynthesis.speak(utterance);
+  };
+
   const handleAnswerSocrates = (option: string) => {
     const q = socratesQuestions[currentQuestionIdx];
+    if (!q) {
+      socratesAnswerHandledRef.current = true;
+      return;
+    }
+
+    socratesAnswerHandledRef.current = true;
+
+    if (socratesRecognitionRef.current) {
+      try {
+        socratesRecognitionRef.current.abort();
+      } catch (e) {}
+      socratesRecognitionRef.current = null;
+    }
+    setIsSocratesListening(false);
+    window.speechSynthesis?.cancel();
+    setIsSpeaking(false);
 
     const updated = {
       ...socratesAnswers,
@@ -411,8 +579,10 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
       currentQuestionIdx + 1 <
       socratesQuestions.length
     ) {
-      setCurrentQuestionIdx(
-        currentQuestionIdx + 1
+      const nextQuestionIdx = currentQuestionIdx + 1;
+      setCurrentQuestionIdx(nextQuestionIdx);
+      speakSocratesQuestion(
+        socratesQuestions[nextQuestionIdx].question
       );
     } else {
       submitDoctorConsultation(
@@ -501,7 +671,7 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
 
         {/* Avatar */}
         <MedicalAvatar
-          status={status}
+          status={status === 'socrates' ? 'done' : status}
           isSpeaking={isSpeaking}
           language={language}
           onClick={handleAvatarClick}
@@ -580,7 +750,9 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
                 </div>
 
                 <p className="text-xs text-slate-400 font-medium">
-                  Tap an option above to help the doctor review your symptoms.
+                  {isSocratesListening
+                    ? 'Listening for your spoken answer...'
+                    : 'Speak your answer after the question, or tap an option above.'}
                 </p>
               </div>
             )}
@@ -691,9 +863,23 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
             </button>
 
           ) : status === 'socrates' ? (
-            <div className="text-xs text-slate-400 font-medium">
-              Answer the question above
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (!isSpeaking) {
+                  void startSocratesAnswerListening();
+                }
+              }}
+              disabled={isSpeaking || isSocratesListening}
+              className="w-16 h-16 rounded-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white flex items-center justify-center shadow-lg transition-transform active:scale-95 cursor-pointer disabled:cursor-not-allowed"
+              title="Answer the SOCRATES question by voice"
+            >
+              {isSocratesListening ? (
+                <MicOff className="w-7 h-7" />
+              ) : (
+                <Mic className="w-7 h-7" />
+              )}
+            </button>
 
           ) : (
             <button
@@ -715,4 +901,3 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
 };
 
 export default VoiceScreen;
-```

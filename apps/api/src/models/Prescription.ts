@@ -6,6 +6,7 @@ export interface IPrescription extends Document {
   medications: string[];
   instructions: string;
   status: 'draft' | 'active' | 'completed';
+  version: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -15,7 +16,8 @@ const PrescriptionSchema: Schema = new Schema({
   patientId: { type: Schema.Types.ObjectId, ref: 'Patient', required: true },
   medications: { type: [String], default: [] },
   instructions: { type: String, required: true },
-  status: { type: String, enum: ['draft', 'active', 'completed'], default: 'active' }
+  status: { type: String, enum: ['draft', 'active', 'completed'], default: 'active' },
+  version: { type: Number, default: 1 },
 }, {
   timestamps: true
 });

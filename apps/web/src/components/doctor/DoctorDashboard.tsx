@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import DoctorSummaryModal from './DoctorSummaryModal';
+import type { DoctorSummaryPayload } from './DoctorSummaryModal';
 
 interface PatientProfile {
   _id: string;
@@ -54,6 +56,8 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
   const [filterPriority, setFilterPriority] = useState<'all' | 'emergency' | 'urgent' | 'routine'>('all');
   const [doctorNotes, setDoctorNotes] = useState<string>('');
   const [isSigningOff, setIsSigningOff] = useState<boolean>(false);
+  const [summaryPayload, setSummaryPayload] = useState<DoctorSummaryPayload | null>(null);
+  const [isSummaryOpen, setIsSummaryOpen] = useState(false);
 
   const fetchQueue = async () => {
     try {
@@ -84,6 +88,26 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
   const handleSelectPatient = (item: ConsultationItem) => {
     setSelectedConsultation(item);
     setDoctorNotes(item.treatmentPlan || '');
+    void openSummary(item);
+  };
+
+  const openSummary = async (item: ConsultationItem) => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/v1/doctor/consultations/${item._id}/summary`);
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Failed to load clinical summary');
+      setSummaryPayload(data.data);
+      setIsSummaryOpen(true);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load clinical summary');
+    }
+  };
+
+  const refreshSummary = async () => {
+    if (!selectedConsultation) return;
+    const res = await fetch(`http://localhost:5000/api/v1/doctor/consultations/${selectedConsultation._id}/summary`);
+    const data = await res.json();
+    if (res.ok && data.success) setSummaryPayload(data.data);
   };
 
   const handleSignOff = async () => {
@@ -413,6 +437,13 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
           )}
         </div>
       </div>
+      {isSummaryOpen && summaryPayload && (
+        <DoctorSummaryModal
+          payload={summaryPayload}
+          onClose={() => setIsSummaryOpen(false)}
+          onRefresh={refreshSummary}
+        />
+      )}
     </div>
   );
 };
