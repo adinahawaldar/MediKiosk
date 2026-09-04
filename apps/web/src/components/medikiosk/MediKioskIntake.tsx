@@ -523,6 +523,7 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
                 mappedSymptoms={mappedSymptoms}
                 existingSymptom={mappedSymptoms.find(s => s.bodyRegion === activeRegion.id)}
                 mode={historyMode}
+                language={activeLangCode as 'en' | 'hi' | 'mr'}
                 onSaveSymptom={handleSaveSymptom}
                 onSaveMultiSymptoms={(updated) => {
                   setMappedSymptoms(updated);
