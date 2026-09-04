@@ -28,6 +28,7 @@ export default function App() {
                 setScreen('medikiosk_3d');
               }
             }}
+            onOpenDoctorDashboard={() => setScreen('doctor')}
           />
         )}
 
