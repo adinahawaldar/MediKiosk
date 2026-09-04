@@ -1,4 +1,4 @@
-```tsx
+
 import React, { useState, useRef } from 'react';
 import MedicalAvatar from './MedicalAvatar';
 import { Mic, MicOff, ArrowLeft, RefreshCw } from 'lucide-react';
@@ -715,4 +715,3 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
 };
 
 export default VoiceScreen;
-```
