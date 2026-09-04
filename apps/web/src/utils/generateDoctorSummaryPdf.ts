@@ -327,34 +327,50 @@ export const openDoctorSummaryPdfWindow = (data: PatientSummaryData = DEFAULT_ST
 };
 
 /**
- * Uses Express backend Puppeteer service to render HTML and trigger direct .pdf file download
+ * Opens docgenerator.html directly in a new browser window/tab
  */
-export const downloadDoctorSummaryPdfWithPuppeteer = async (
+export const openDocGeneratorHtmlWindow = (_data: PatientSummaryData = DEFAULT_STATIC_SUMMARY_DATA) => {
+  window.open('/docgenerator.html', '_blank');
+};
+
+/**
+ * Direct Client-Side PDF Download (Amira Law PDF Generator pattern)
+ * Opens /docgenerator.html?autodownload=true in hidden iframe or direct popup to trigger immediate PDF export
+ */
+export const downloadDoctorSummaryPdfDirect = async (
   data: PatientSummaryData = DEFAULT_STATIC_SUMMARY_DATA
 ): Promise<void> => {
-  const htmlContent = generateSummaryHTMLString(data);
+  // First try backend Puppeteer service
   try {
+    const htmlContent = generateSummaryHTMLString(data);
     const res = await fetch('/api/v1/medikiosk/generate-pdf', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ htmlContent }),
     });
 
-    if (!res.ok) {
-      throw new Error(`PDF generation failed with status: ${res.status}`);
+    if (res.ok) {
+      const pdfBlob = await res.blob();
+      const url = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Doctor_Clinical_Summary_${data.ampathId || '00366'}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      return;
     }
-
-    const pdfBlob = await res.blob();
-    const url = URL.createObjectURL(pdfBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Doctor_Clinical_Summary_${data.ampathId || '00366'}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
   } catch (err) {
-    console.warn('Puppeteer backend PDF download error, falling back to browser print window:', err);
-    openDoctorSummaryPdfWindow(data);
+    console.warn('Backend PDF endpoint unavailable, falling back to frontend docgenerator.html:', err);
   }
+
+  // Frontend Fallback: Trigger direct PDF download via /docgenerator.html
+  window.open('/docgenerator.html?autodownload=true', '_blank');
 };
+
+/**
+ * Uses Express backend Puppeteer service or falls back to client-side docgenerator.html
+ */
+export const downloadDoctorSummaryPdfWithPuppeteer = downloadDoctorSummaryPdfDirect;
+
