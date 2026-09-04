@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, Keyboard, HelpCircle, User, Stethoscope } from 'lucide-react';
+import { Mic, Keyboard, HelpCircle, User, Stethoscope, FileText } from 'lucide-react';
 import MedicalAvatar from './MedicalAvatar';
 
 export interface WelcomeProps {
   onStartIntake?: (mode: 'voice' | 'touch') => void;
   onOpenDoctorDashboard?: () => void;
+  onOpenPatientPortal?: () => void;
   language?: 'en' | 'hi' | 'mr';
   onLanguageChange?: (lang: 'en' | 'hi' | 'mr') => void;
 }
@@ -12,6 +13,7 @@ export interface WelcomeProps {
 export const Welcome: React.FC<WelcomeProps> = ({
   onStartIntake,
   onOpenDoctorDashboard,
+  onOpenPatientPortal,
   language: initialLanguage = 'en',
   onLanguageChange
 }) => {
@@ -252,43 +254,47 @@ export const Welcome: React.FC<WelcomeProps> = ({
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
-          {/* Patient Kiosk Dashboard CTA */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
+          {/* Patient Kiosk CTA */}
           <button
             type="button"
             onClick={() => onStartIntake && onStartIntake('touch')}
-            className="p-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-800 text-slate-900 text-left transition-all duration-200 shadow-sm flex items-center space-x-3 cursor-pointer group"
+            className="p-4 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-800 text-slate-900 text-left transition-all duration-200 shadow-xs cursor-pointer"
           >
-            <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-800 group-hover:bg-slate-900 group-hover:text-white transition-colors shrink-0">
-              <User className="w-5 h-5" />
-            </div>
-            <div>
-              <span className="text-xs font-black block text-slate-900 uppercase tracking-wider">
-                Patient Kiosk Portal
-              </span>
-              <span className="text-[10px] text-slate-500 block font-medium mt-0.5">
-                Launch Patient 3D Intake →
-              </span>
-            </div>
+            <span className="text-xs font-bold block text-slate-900 uppercase tracking-wider">
+              Patient Kiosk
+            </span>
+            <span className="text-[11px] text-slate-500 block font-medium mt-0.5">
+              Launch 3D Intake →
+            </span>
+          </button>
+
+          {/* Patient Health Portal CTA */}
+          <button
+            type="button"
+            onClick={() => onOpenPatientPortal && onOpenPatientPortal()}
+            className="p-4 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-800 text-slate-900 text-left transition-all duration-200 shadow-xs cursor-pointer"
+          >
+            <span className="text-xs font-bold block text-slate-900 uppercase tracking-wider">
+              Patient Health Portal
+            </span>
+            <span className="text-[11px] text-slate-500 block font-medium mt-0.5">
+              View Health Records →
+            </span>
           </button>
 
           {/* Doctor Dashboard CTA */}
           <button
             type="button"
             onClick={() => onOpenDoctorDashboard && onOpenDoctorDashboard()}
-            className="p-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-800 text-slate-900 text-left transition-all duration-200 shadow-sm flex items-center space-x-3 cursor-pointer group"
+            className="p-4 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-800 text-slate-900 text-left transition-all duration-200 shadow-xs cursor-pointer"
           >
-            <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-800 group-hover:bg-slate-900 group-hover:text-white transition-colors shrink-0">
-              <Stethoscope className="w-5 h-5" />
-            </div>
-            <div>
-              <span className="text-xs font-black block text-slate-900 uppercase tracking-wider">
-                Doctor Dashboard
-              </span>
-              <span className="text-[10px] text-slate-500 block font-medium mt-0.5">
-                Launch Physician Queue →
-              </span>
-            </div>
+            <span className="text-xs font-bold block text-slate-900 uppercase tracking-wider">
+              Doctor Dashboard
+            </span>
+            <span className="text-[11px] text-slate-500 block font-medium mt-0.5">
+              Physician Queue →
+            </span>
           </button>
         </div>
       </div>

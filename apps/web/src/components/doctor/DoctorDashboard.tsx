@@ -52,6 +52,50 @@ interface DoctorDashboardProps {
 
 const INITIAL_DEMO_CONSULTATIONS: ConsultationItem[] = [
   {
+    _id: 'demo-adina-hawaldar',
+    patientId: {
+      _id: 'p-adina',
+      firstName: 'Adina',
+      lastName: 'Hawaldar',
+      phone: '+91 98200 99887',
+      gender: 'Female',
+      dateOfBirth: '2007-02-14',
+      hospitalId: 'HOSP-DEMO-201',
+      allergies: ['Penicillin'],
+      medicalHistory: [
+        'Migraine & Severe Recurrent Headaches (since 2 years)',
+        'Intermittent Pleuritic Chest Discomfort (Long Medical History)',
+        'Bronchial Asthma & Hyperacidity (2024)',
+      ],
+    },
+    doctorId: {
+      _id: 'doc-rao',
+      firstName: 'Ananya',
+      lastName: 'Rao',
+      specialization: 'General Medicine',
+      department: 'Outpatient Clinic',
+    },
+    symptoms: [
+      'Severe Pulsating Migraine Headache (8/10)',
+      'Intermittent Pleuritic Chest Discomfort',
+      'Photophobia & Nausea',
+    ],
+    diagnosis: 'Acute Severe Migraine Episode with Pleuritic Discomfort',
+    treatmentPlan: 'Sumatriptan 50mg PO stat, Ondansetron 4mg, STAT ECG & Chest X-ray, Dark room rest.',
+    status: 'open',
+    priority: 'urgent',
+    triageScore: 78,
+    triageNotes: 'AMBER URGENT: 19yo female with 2-year history of severe recurrent migraines and pleuritic chest discomfort.',
+    triageAIEvaluated: true,
+    soapNotes: {
+      subjective: 'CHIEF COMPLAINT: Recurrent throbbing migraine headache (8/10) onset 2 hours ago with pleuritic chest discomfort.\nSite: Right temporal & chest\nOnset: 2 hours ago\nSeverity: 8/10',
+      objective: 'Kiosk Vitals: BP 118/76 mmHg, Pulse 82 bpm, SpO2 99%, Temp 98.4°F.',
+      assessment: 'AMBER URGENT. Severe Migraine Exacerbation with chest discomfort.',
+      plan: 'Triptan therapy, ECG, quiet dark room rest, neurology follow-up.',
+    },
+    createdAt: new Date().toISOString(),
+  },
+  {
     _id: 'demo-zuveria-kazi',
     patientId: {
       _id: 'p-zuveria',
@@ -1175,31 +1219,16 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
   return (
     <div className="w-full min-h-screen bg-white text-slate-900 p-6 md:p-10 font-sans antialiased">
       
-      {/* Top Bar with Real-time Kiosk Integration & Refresh */}
+      {/* Top Bar with Refresh */}
       <div className="w-full flex justify-between items-center mb-2">
+        <div></div>
         <button
           type="button"
-          onClick={onBackToKiosk}
-          className="px-3.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm flex items-center space-x-1.5"
+          onClick={fetchQueue}
+          className="px-3.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm ml-auto"
         >
-          <span>🖥️ Launch Patient Kiosk Intake</span>
+          Refresh Queue
         </button>
-        <div className="flex items-center space-x-2">
-          <button
-            type="button"
-            onClick={simulateLiveKioskIntake}
-            className="px-3.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-sm flex items-center space-x-1.5 animate-pulse"
-          >
-            <span>⚡ Simulate Live Kiosk Check-in</span>
-          </button>
-          <button
-            type="button"
-            onClick={fetchQueue}
-            className="px-3.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
-          >
-            Refresh Queue
-          </button>
-        </div>
       </div>
 
       {/* Centered Top Headline */}

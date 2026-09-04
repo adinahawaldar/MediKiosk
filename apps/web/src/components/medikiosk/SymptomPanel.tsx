@@ -10,6 +10,7 @@ interface SymptomPanelProps {
   existingSymptom?: MappedSymptom;
   mode?: 'allopathy' | 'ayush';
   language?: 'en' | 'hi' | 'mr';
+  patientHistory?: string[];
   onSaveSymptom: (symptomData: MappedSymptom) => void;
   onSaveMultiSymptoms?: (symptomsData: MappedSymptom[]) => void;
   onClose: () => void;
@@ -35,11 +36,12 @@ export const SymptomPanel: React.FC<SymptomPanelProps> = ({
   existingSymptom,
   mode = 'allopathy',
   language = 'en',
+  patientHistory = [],
   onSaveSymptom,
   onClose,
 }) => {
 
-  // Adaptive Multi-Turn AI States (Turn 1: Primary Selection -> Turns 2-5: Deep Follow-up Questions)
+  // Adaptive Multi-Turn AI States
   const [turnCount, setTurnCount] = useState<number>(1);
   const [primaryProblem, setPrimaryProblem] = useState<string>(initialSymptom || '');
   const [selectedSeverity, setSelectedSeverity] = useState<string>(existingSymptom?.severity || 'moderate');
@@ -51,6 +53,44 @@ export const SymptomPanel: React.FC<SymptomPanelProps> = ({
   const [adaptationHint, setAdaptationHint] = useState('');
   const [questionHistory, setQuestionHistory] = useState<Array<{ questions: SocratesQuestion[]; index: number; answers: Record<string, string>; turn: number }>>([]);
   const translationCache = React.useRef(new Map<string, string>());
+
+  // Dynamic Past History Question Evaluator (Turn 1)
+  const getPastHistoryQuestion = (rId: string, historyList: string[]) => {
+    if (!historyList || historyList.length === 0) return null;
+    const rLower = rId.toLowerCase();
+
+    if (rLower === 'head' || rLower === 'face') {
+      const match = historyList.find(h => h.toLowerCase().includes('headache') || h.toLowerCase().includes('migraine'));
+      if (match) {
+        return {
+          question: `Our hospital records show you have a past history of "${match}". Are you experiencing this same headache problem today?`,
+          options: [
+            `Yes, it feels like my usual Migraine / Headache episode`,
+            `No, this headache feels different & more severe`,
+            `I have a different head or sinus symptom`,
+            `Other / Type details`,
+          ],
+        };
+      }
+    }
+
+    if (rLower === 'chest') {
+      const match = historyList.find(h => h.toLowerCase().includes('chest') || h.toLowerCase().includes('heart') || h.toLowerCase().includes('breath') || h.toLowerCase().includes('pleuritic'));
+      if (match) {
+        return {
+          question: `Our records show a past medical history of "${match}". Is your current chest pain similar to your previous episode?`,
+          options: [
+            `Yes, similar to my previous chest discomfort`,
+            `No, this chest pain is new & sudden`,
+            `Spreads to left arm or jaw (Emergency)`,
+            `Other / Type details`,
+          ],
+        };
+      }
+    }
+
+    return null;
+  };
 
   // Primary Options by Body Region for Turn 1
   const getPrimaryOptions = (rId: string) => {
@@ -81,32 +121,27 @@ export const SymptomPanel: React.FC<SymptomPanelProps> = ({
     }
   };
 
-  // Helper to compute Turn Questions & Options dynamically for Turn 2, 3, 4, 5 (SOCRATES Framework)
+  // Helper to compute Turn Questions & Options dynamically
   const computeTurnData = (turn: number, selectedDisease: string) => {
-    if (mode === 'ayush') {
-      const ayushQuestions = [
-        { question: 'Which body constitution best describes you (Prakriti)?', options: ['Vata', 'Pitta', 'Kapha', 'Not sure'] },
-        { question: 'How is your digestion or Agni?', options: ['Regular (Sama)', 'Irregular (Vishama)', 'Strong (Tikshna)', 'Low (Manda)'] },
-        { question: 'How would you describe your bowel pattern (Koshtha)?', options: ['Hard/constipated', 'Loose/soft', 'Regular', 'Irregular'] },
-        { question: 'Tell us about your diet and daily routine (Ahara-Vihara).', options: ['Regular and balanced', 'Mostly spicy/oily', 'Irregular meals', 'Needs improvement'] },
-        { question: 'How are your sleep and stress levels?', options: ['Good sleep / low stress', 'Poor sleep', 'High stress', 'Both poor sleep and high stress'] },
-      ];
-      const selected = ayushQuestions[Math.min(Math.max(turn - 1, 0), ayushQuestions.length - 1)];
-      return { question: selected.question, options: selected.options };
-    }
-    const text = (selectedDisease || primaryProblem || initialSymptom || '').toLowerCase();
-    const isStomach = text.includes('stomach') || text.includes('vomit') || text.includes('nausea') || text.includes('abdomen') || regionId === 'stomach';
-    const isChest = text.includes('chest') || text.includes('breath') || text.includes('cough') || regionId === 'chest';
-    const isHead = text.includes('head') || text.includes('fever') || text.includes('dizzy') || regionId === 'head';
-
     if (turn === 1) {
+      const pastQuestion = getPastHistoryQuestion(regionId, patientHistory);
+      if (pastQuestion) {
+        return pastQuestion;
+      }
       return {
         question: initialSymptom 
           ? `You reported "${initialSymptom}". What specific problem are you experiencing?`
           : `What problem are you facing in your ${regionName}?`,
         options: getPrimaryOptions(regionId),
       };
-    } else if (turn === 2) {
+    }
+
+    const text = (selectedDisease || primaryProblem || initialSymptom || '').toLowerCase();
+    const isStomach = text.includes('stomach') || text.includes('vomit') || text.includes('nausea') || text.includes('abdomen') || regionId === 'stomach';
+    const isChest = text.includes('chest') || text.includes('breath') || text.includes('cough') || regionId === 'chest';
+    const isHead = text.includes('head') || text.includes('fever') || text.includes('dizzy') || regionId === 'head';
+
+    if (turn === 2) {
       if (isStomach) {
         return {
           question: `When did the abdominal pain or discomfort start?`,
@@ -174,9 +209,9 @@ export const SymptomPanel: React.FC<SymptomPanelProps> = ({
 
   const languageCode = language === 'hi' ? 'hi-IN' : language === 'mr' ? 'mr-IN' : 'en-IN';
   const uiText = {
-    en: { listen: 'Listen', replay: 'Replay question', basedOn: 'Based on your answer, we will ask a more relevant follow-up.', back: 'Change previous answer', other: 'Other answer / type details', severity: 'How severe is it?', complete: 'Complete assessment' },
-    hi: { listen: 'सुनें', replay: 'सवाल फिर सुनें', basedOn: 'आपके जवाब के आधार पर अगला सवाल चुना गया है।', back: 'पिछला जवाब बदलें', other: 'अन्य जवाब / विवरण लिखें', severity: 'यह कितना गंभीर है?', complete: 'जांच पूरी करें' },
-    mr: { listen: 'ऐका', replay: 'प्रश्न पुन्हा ऐका', basedOn: 'तुमच्या उत्तरानुसार पुढील योग्य प्रश्न निवडला आहे.', back: 'मागील उत्तर बदला', other: 'इतर उत्तर / तपशील लिहा', severity: 'हे किती गंभीर आहे?', complete: 'तपासणी पूर्ण करा' },
+    en: { listen: 'Listen', replay: 'Replay question', basedOn: 'Based on your past history and answers, here is your follow-up.', back: 'Change previous answer', other: 'Other answer / type details', severity: 'How severe is it?', complete: 'Complete assessment' },
+    hi: { listen: 'सुनें', replay: 'सवाल फिर सुनें', basedOn: 'आपके पिछले इतिहास और जवाबों के आधार पर अगला सवाल:', back: 'मागील उत्तर बदला', other: 'अन्य जवाब / विवरण लिखें', severity: 'यह कितना गंभीर है?', complete: 'जांच पूरी करें' },
+    mr: { listen: 'ऐका', replay: 'प्रश्न पुन्हा ऐका', basedOn: 'तुमच्या मागील इतिहास आणि उत्तरानुसार पुढील योग्य प्रश्न:', back: 'मागील उत्तर बदला', other: 'इतर उत्तर / तपशील लिहा', severity: 'हे किती गंभीर आहे?', complete: 'तपासणी पूर्ण करा' },
   }[language];
 
   const translateIfNeeded = async (text: string) => {
@@ -210,23 +245,6 @@ export const SymptomPanel: React.FC<SymptomPanelProps> = ({
     })));
   };
 
-  const rankQuestions = (questions: SocratesQuestion[], answer: string) => {
-    const context = `${primaryProblem} ${answer}`.toLowerCase();
-    const priorityTerms = context.includes('chest') || context.includes('breath')
-      ? ['radiat', 'breath', 'exert', 'associated', 'emergency']
-      : context.includes('vomit') || context.includes('nausea')
-        ? ['drink', 'fluid', 'hydrat', 'how many', 'frequen']
-        : context.includes('fever') || context.includes('chill')
-          ? ['fever', 'temperature', 'chill', 'how long', 'duration']
-          : context.includes('severe') || context.includes('7-10')
-            ? ['associated', 'worse', 'sudden', 'emergency', 'breath']
-            : ['onset', 'timing', 'duration', 'associated', 'severity'];
-    return questions
-      .map((question, index) => ({ question, index, rank: priorityTerms.reduce((score, term) => score + ((`${question.id} ${question.question} ${question.options.join(' ')}`).toLowerCase().includes(term) ? 1 : 0), 0) }))
-      .sort((a, b) => b.rank - a.rank || a.index - b.index)
-      .map(({ question }) => question);
-  };
-
   // State for current Question & Options
   const [currentQuestion, setCurrentQuestion] = useState<string>('');
   const [currentOptions, setCurrentOptions] = useState<string[]>([]);
@@ -253,12 +271,9 @@ export const SymptomPanel: React.FC<SymptomPanelProps> = ({
     const t1 = computeTurnData(1, initialSymptom || '');
     setCurrentQuestion(t1.question);
     setCurrentOptions(t1.options);
-  }, [regionId, initialSymptom]);
+  }, [regionId, initialSymptom, patientHistory]);
 
-  // SOCRATES state tracking
-  const [socratesState, setSocratesState] = useState<Record<string, string>>({});
-
-  // Advance Turn in the adaptive SOCRATES AI Interview
+  // Advance Turn in the adaptive SOCRATES AI Interview (Deterministic Non-Looping Progression)
   const advanceTurn = async (chosenAnswer: string) => {
     const newNotes = [...accumulatedNotes, chosenAnswer];
     setAccumulatedNotes(newNotes);
@@ -267,7 +282,6 @@ export const SymptomPanel: React.FC<SymptomPanelProps> = ({
     if (turnCount === 1) {
       setPrimaryProblem(chosenAnswer);
 
-      // Use the same SOCRATES question generator as the voice intake.
       try {
         const response = await fetch('/api/v1/medikiosk/questions', {
           method: 'POST',
@@ -279,43 +293,65 @@ export const SymptomPanel: React.FC<SymptomPanelProps> = ({
           }),
         });
         const json = await response.json();
-        const questions = json.data?.adaptiveQuestions;
+        let questions = json.data?.adaptiveQuestions || [];
 
-        if (json.success && Array.isArray(questions) && questions.length > 0) {
-          const localizedQuestions = await localizeQuestionSet(rankQuestions(questions, chosenAnswer));
-          setSocratesQuestions(localizedQuestions);
-          setSocratesAnswers({});
-          setSocratesIndex(0);
-          setTurnCount(2);
-          setTypedDetail('');
-          setAdaptationHint(uiText.basedOn);
-          setCurrentQuestion(localizedQuestions[0].question);
-          setCurrentOptions(localizedQuestions[0].options || []);
-          return;
+        if (!Array.isArray(questions) || questions.length === 0) {
+          questions = [
+            { id: 'site_q', question: `Where is the symptom most intense in your ${regionName}?`, options: ['Frontal / Localized', 'Right / Left side', 'All over region', 'Spreads to adjacent area'] },
+            { id: 'onset_q', question: `When and how did this episode start?`, options: ['Suddenly today', 'Gradual over 2 days', 'After waking up', 'After physical strain'] },
+            { id: 'char_q', question: `What is the nature of the pain or discomfort?`, options: ['Throbbing / Pulsating', 'Sharp stabbing', 'Heavy pressure', 'Dull ache'] },
+            { id: 'rad_q', question: `Does the discomfort move anywhere else?`, options: ['Spreads to neck/shoulders', 'Spreads to arm or back', 'Nausea & dizziness', 'Does not spread'] },
+            { id: 'sev_q', question: `How severe is this episode right now?`, options: ['Mild (3/10)', 'Moderate (5/10)', 'Severe (8/10)', 'Very Severe (10/10)'] },
+          ];
         }
+
+        // Ensure every single question has a guaranteed unique string ID
+        const safeQuestions: SocratesQuestion[] = questions.map((q: any, idx: number) => ({
+          id: q.id || `q_${idx}_${Date.now()}`,
+          question: q.question || `SOCRATES Question ${idx + 1}`,
+          options: Array.isArray(q.options) && q.options.length > 0 ? q.options : ['Yes', 'No', 'Uncertain'],
+        }));
+
+        const localizedQuestions = await localizeQuestionSet(safeQuestions);
+        setSocratesQuestions(localizedQuestions);
+        setSocratesAnswers({});
+        setSocratesIndex(0);
+        setTurnCount(2);
+        setTypedDetail('');
+        setAdaptationHint(uiText.basedOn);
+        setCurrentQuestion(localizedQuestions[0].question);
+        setCurrentOptions(localizedQuestions[0].options || []);
+        return;
       } catch (err) {
-        console.warn('SOCRATES question service unavailable, using local fallback:', err);
+        console.warn('SOCRATES question service unavailable, using fallback questions:', err);
       }
     }
 
+    // Handle Turn 2+ SOCRATES questions with deterministic step index
     if (socratesQuestions.length > 0 && turnCount > 1) {
-      const currentSocratesQuestion = socratesQuestions[socratesIndex];
+      const currentQ = socratesQuestions[socratesIndex];
+      const currentQId = currentQ?.id || `q_idx_${socratesIndex}`;
+
       const updatedAnswers = {
         ...socratesAnswers,
-        [currentSocratesQuestion.id]: chosenAnswer,
+        [currentQId]: chosenAnswer,
       };
-      const remainingQuestions = socratesQuestions.filter((question, index) => index !== socratesIndex && !updatedAnswers[question.id]);
-      const reorderedQuestions = rankQuestions(remainingQuestions, Object.values(updatedAnswers).join(' '));
-      setQuestionHistory((history) => [...history, { questions: socratesQuestions, index: socratesIndex, answers: socratesAnswers, turn: turnCount }]);
+
+      setQuestionHistory((history) => [
+        ...history,
+        { questions: socratesQuestions, index: socratesIndex, answers: socratesAnswers, turn: turnCount },
+      ]);
       setSocratesAnswers(updatedAnswers);
 
-      if (reorderedQuestions.length === 0) {
+      const nextIndex = socratesIndex + 1;
+      if (nextIndex >= socratesQuestions.length) {
+        // All SOCRATES questions completed! Save assessment.
         onSaveSymptom({
           bodyRegion: regionId,
           symptom: newNotes.join('; '),
           severity: selectedSeverity,
-          duration: updatedAnswers.timing || updatedAnswers.onset || 'Today',
-          onset: updatedAnswers.onset,
+          duration: updatedAnswers.onset_q || updatedAnswers.onset || 'Today',
+          onset: updatedAnswers.onset_q || updatedAnswers.onset,
           additionalDetails: {
             description: newNotes.join(' | '),
             socrates: mode === 'allopathy' ? updatedAnswers : {},
@@ -325,83 +361,33 @@ export const SymptomPanel: React.FC<SymptomPanelProps> = ({
         return;
       }
 
-      setSocratesQuestions(reorderedQuestions);
-      setSocratesIndex(0);
+      setSocratesIndex(nextIndex);
       setTurnCount(turnCount + 1);
       setTypedDetail('');
-      setCurrentQuestion(reorderedQuestions[0].question);
-      setCurrentOptions(reorderedQuestions[0].options || []);
+      const nextQ = socratesQuestions[nextIndex];
+      setCurrentQuestion(nextQ.question);
+      setCurrentOptions(nextQ.options || []);
       setAdaptationHint(uiText.basedOn);
       return;
     }
 
+    // Fallback turn progression
     const nextTurn = turnCount + 1;
-    setTurnCount(nextTurn);
-    setTypedDetail('');
-
-    // Call Live Backend AI Engine with SOCRATES State
-    try {
-      const res = await fetch('/api/v1/medikiosk/converse-turn', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query: chosenAnswer,
-          regionId,
-          regionName,
-          turnCount: nextTurn,
-          socratesState,
-        }),
-      });
-
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && json.data) {
-          const updatedSocrates = json.data.socratesState || socratesState;
-          setSocratesState(updatedSocrates);
-
-          if (json.data.isComplete) {
-            // Assessment for this symptom complete
-            const combinedSymptom = newNotes.join('; ') || primaryProblem || initialSymptom || 'Symptom Reported';
-            onSaveSymptom({
-              bodyRegion: regionId,
-              symptom: combinedSymptom,
-              severity: selectedSeverity,
-              duration: updatedSocrates.onset || 'Today',
-              onset: updatedSocrates.onset,
-              additionalDetails: {
-                description: newNotes.join(' | '),
-                socrates: updatedSocrates,
-              },
-            });
-            return;
-          }
-
-          if (json.data.aiQuestion) {
-            setCurrentQuestion(json.data.aiQuestion);
-            setCurrentOptions(json.data.options || []);
-            return;
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('Backend API offline, using client AI engine fallback:', err);
-    }
-
     if (nextTurn > 5) {
       onSaveSymptom({
         bodyRegion: regionId,
         symptom: newNotes.join('; '),
         severity: selectedSeverity,
-        duration: socratesState.onset || 'Today',
+        duration: 'Today',
         additionalDetails: {
           description: newNotes.join(' | '),
-          socrates: socratesState,
         },
       });
       return;
     }
 
-    // Fallback to client engine
+    setTurnCount(nextTurn);
+    setTypedDetail('');
     const nextData = computeTurnData(nextTurn, activeProblem);
     setCurrentQuestion(nextData.question);
     setCurrentOptions(nextData.options);
@@ -492,31 +478,33 @@ export const SymptomPanel: React.FC<SymptomPanelProps> = ({
           </div>
         )}
 
-        {/* Pain Severity Selector */}
-        <div className="text-left space-y-1.5 pt-1">
-          <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-            {uiText.severity}
-          </label>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {SEVERITY_LEVELS.map(sev => {
-              const isSelected = selectedSeverity === sev.id;
-              return (
-                <button
-                  key={sev.id}
-                  onClick={() => setSelectedSeverity(sev.id)}
-                    className={`min-h-16 py-2 px-2 rounded-2xl text-center transition-all cursor-pointer flex flex-col items-center justify-center ${
-                    isSelected
-                      ? 'bg-slate-50/90 text-slate-900 border-2 border-slate-800 font-semibold shadow-2xs'
-                      : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 font-medium'
-                  }`}
-                >
-                  <span className="text-xl" aria-hidden="true">{sev.id === 'mild' ? '🙂' : sev.id === 'moderate' ? '😐' : sev.id === 'severe' ? '😣' : '🚨'}</span>
-                  <span className="text-xs font-semibold">{sev.label}</span>
-                </button>
-              );
-            })}
+        {/* Pain Severity Selector (Shown ONLY on First Question and Final Question) */}
+        {(turnCount === 1 || turnCount >= 5 || (socratesQuestions.length > 0 && socratesIndex >= socratesQuestions.length - 1)) && (
+          <div className="text-left space-y-1.5 pt-1">
+            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+              {uiText.severity}
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {SEVERITY_LEVELS.map(sev => {
+                const isSelected = selectedSeverity === sev.id;
+                return (
+                  <button
+                    key={sev.id}
+                    onClick={() => setSelectedSeverity(sev.id)}
+                    className={`min-h-14 py-2 px-2 rounded-2xl text-center transition-all cursor-pointer flex flex-col items-center justify-center ${
+                      isSelected
+                        ? 'bg-slate-50/90 text-slate-900 border-2 border-slate-800 font-semibold shadow-2xs'
+                        : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 font-medium'
+                    }`}
+                  >
+                    <span className="text-lg" aria-hidden="true">{sev.id === 'mild' ? '🙂' : sev.id === 'moderate' ? '😐' : sev.id === 'severe' ? '😣' : '🚨'}</span>
+                    <span className="text-xs font-semibold">{sev.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
         {questionHistory.length > 0 && (
           <button type="button" onClick={goBack} className="self-start flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 min-h-11 px-2">
@@ -551,22 +539,9 @@ export const SymptomPanel: React.FC<SymptomPanelProps> = ({
           </button>
         </form>
 
-        {/* CTA Action Buttons: Next Question during turns 1-4, Complete on final turn */}
-        <div className="flex items-center space-x-2 pt-1">
-          {turnCount < 5 ? (
-            <button
-              onClick={() => {
-                if (typedDetail.trim()) {
-                  advanceTurn(typedDetail.trim());
-                } else {
-                  advanceTurn(primaryProblem || 'Symptom noted');
-                }
-              }}
-              className="w-full py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center space-x-2"
-            >
-              <span>Next Question ({turnCount}/5) →</span>
-            </button>
-          ) : (
+        {/* Complete Assessment CTA Button (Visible on final step or when completing) */}
+        {(turnCount >= 5 || (socratesQuestions.length > 0 && socratesIndex >= socratesQuestions.length - 1)) && (
+          <div className="flex items-center space-x-2 pt-1">
             <button
               onClick={() => {
                 if (socratesQuestions.length > 0) {
@@ -580,8 +555,8 @@ export const SymptomPanel: React.FC<SymptomPanelProps> = ({
               <Check className="w-4 h-4 text-white" />
               <span>{uiText.complete} →</span>
             </button>
-          )}
-        </div>
+          </div>
+        )}
 
       </div>
     </div>
