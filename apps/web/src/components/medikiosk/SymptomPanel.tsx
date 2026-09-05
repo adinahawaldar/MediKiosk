@@ -268,10 +268,12 @@ export const SymptomPanel: React.FC<SymptomPanelProps> = ({
 
   // Load Turn 1 on Mount
   useEffect(() => {
-    const t1 = computeTurnData(1, initialSymptom || '');
-    setCurrentQuestion(t1.question);
-    setCurrentOptions(t1.options);
-  }, [regionId, initialSymptom, patientHistory]);
+    if (turnCount === 1) {
+      const t1 = computeTurnData(1, initialSymptom || '');
+      setCurrentQuestion(t1.question);
+      setCurrentOptions(t1.options);
+    }
+  }, [regionId, initialSymptom]);
 
   // Advance Turn in the adaptive SOCRATES AI Interview (Deterministic Non-Looping Progression)
   const advanceTurn = async (chosenAnswer: string) => {

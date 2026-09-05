@@ -627,7 +627,7 @@ Output ONLY valid JSON matching this schema:
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: process.env.GROQ_LLM_MODEL || 'openai/gpt-oss-120b',
+            model: process.env.GROQ_LLM_MODEL || 'llama-3.3-70b-versatile',
             messages: [
               { role: 'system', content: systemPrompt },
               { role: 'user', content: userPrompt },
@@ -642,35 +642,102 @@ Output ONLY valid JSON matching this schema:
           if (raw.includes('```json')) raw = raw.split('```json')[1].split('```')[0].trim();
           else if (raw.includes('```')) raw = raw.split('```')[1].split('```')[0].trim();
           const parsed = JSON.parse(raw);
-          return res.json({
-            success: true,
-            data: {
-              adaptiveQuestions: parsed.adaptiveQuestions || [],
-              redFlagsDetected: parsed.redFlags || [],
-            },
-          });
+          if (parsed.adaptiveQuestions?.length > 0) {
+            return res.json({
+              success: true,
+              data: {
+                adaptiveQuestions: parsed.adaptiveQuestions,
+                redFlagsDetected: parsed.redFlags || [],
+              },
+            });
+          }
         }
       } catch (err) {
         console.warn('Groq direct SOCRATES call fallback:', err);
       }
     }
 
-    // 3. Deterministic SOCRATES Fallback
+    // 3. Deterministic SOCRATES Fallback (Symptom-sensitive)
     const isHi = language === 'hi';
-    const fallbackQuestions = isHi ? [
-      { id: 'site', question: 'दर्द या लक्षण का मुख्य स्थान कहाँ है?', options: ['छाती', 'पेट', 'सिर', 'जोड़ / पीठ'] },
-      { id: 'onset', question: 'यह समस्या कब और कैसे शुरू हुई?', options: ['अचानक', 'धीरे-धीरे', 'भोजन के बाद'] },
-      { id: 'severity', question: 'दर्द की तीव्रता 0 से 10 के पैमाने पर बताएं:', options: ['हल्का (1-3)', 'मध्यम (4-6)', 'गंभीर (7-10)'] },
-    ] : [
-      { id: 'site', question: 'Where is the main location of your pain or symptom?', options: ['Chest', 'Stomach / Abdomen', 'Head', 'Back / Joints'] },
-      { id: 'onset', question: 'When and how did your symptoms begin?', options: ['Suddenly', 'Gradually', 'After exertion / eating'] },
-      { id: 'severity', question: 'Rate the severity of your symptoms (1-10):', options: ['Mild (1-3)', 'Moderate (4-6)', 'Severe (7-10)'] },
-    ];
+    const cLower = (chiefComplaint || '').toLowerCase();
+    const cleanLabel = (chiefComplaint || 'symptom').replace(/^[a-z_]+:\s*/i, '').trim();
+
+    let adaptiveQuestions = [];
+
+    if (cLower.includes('knee') || cLower.includes('leg') || cLower.includes('joint') || cLower.includes('back') || cLower.includes('arm') || cLower.includes('shoulder') || cLower.includes('ankle') || cLower.includes('hip') || cLower.includes('thigh') || cLower.includes('foot') || cLower.includes('elbow') || cLower.includes('wrist') || cLower.includes('peeth') || cLower.includes('pith')) {
+      adaptiveQuestions = isHi ? [
+        { id: 'onset', question: `घुटने/जोड़ या ${cleanLabel} में समस्या कब से और कैसे शुरू हुई?`, options: ['आज ही', '1-2 दिन से', '1 हफ्ते से ज्यादा', 'चोट के बाद'] },
+        { id: 'character', question: 'दर्द या असुविधा कैसी महसूस होती है?', options: ['तेज चुभन वाला दर्द', 'हल्का मीठा दर्द', 'अकड़न और सूजन', 'चलने पर दर्द'] },
+        { id: 'associated', question: 'क्या इनमें से कोई अन्य लक्षण हैं?', options: ['सूजन', 'लालिमा / गर्मी', 'चलने-फिरने में कठिनाई', 'कोई अन्य लक्षण नहीं'] },
+        { id: 'severity', question: 'दर्द की तीव्रता 1 से 10 के पैमाने पर बताएं:', options: ['हल्का (1-3)', 'मध्यम (4-6)', 'गंभीर (7-10)'] },
+      ] : [
+        { id: 'onset', question: `When and how did your ${cleanLabel} begin?`, options: ['Suddenly today', '1-2 days ago', 'More than a week ago', 'After an injury/fall'] },
+        { id: 'character', question: 'What does the discomfort feel like?', options: ['Sharp stabbing pain', 'Dull ache', 'Stiffness & swelling', 'Pain when walking/moving'] },
+        { id: 'associated', question: 'Are you experiencing any associated symptoms?', options: ['Swelling / Puffiness', 'Redness / Warmth', 'Difficulty bearing weight', 'No other symptoms'] },
+        { id: 'severity', question: 'Rate the severity of your pain (1-10):', options: ['Mild (1-3)', 'Moderate (4-6)', 'Severe (7-10)'] },
+      ];
+    } else if (cLower.includes('chest') || cLower.includes('seene') || cLower.includes('heart') || cLower.includes('tightness')) {
+      adaptiveQuestions = isHi ? [
+        { id: 'site', question: 'छाती में दर्द कहाँ हो रहा है और क्या यह बाएं हाथ या पीठ की तरफ फैल रहा है?', options: ['छाती के बीच में', 'बाईं तरफ', 'दाईं तरफ', 'हाथ/पीठ की तरफ फैल रहा है'] },
+        { id: 'onset', question: 'छाती का दर्द कब और कैसे शुरू हुआ?', options: ['अचानक आज', '1-2 घंटे पहले', 'काम करने के बाद'] },
+        { id: 'character', question: 'दर्द कैसा महसूस हो रहा है — दबाव, चुभन या जलन?', options: ['भारी दबाव / जकड़न', 'तेज चुभन', 'जलन (Heartburn)'] },
+        { id: 'severity', question: 'छाती दर्द की गंभीरता बताएं (1-10):', options: ['हल्का (1-3)', 'मध्यम (4-6)', 'गंभीर (7-10)'] },
+      ] : [
+        { id: 'site', question: 'Where in your chest is the pain located and does it radiate anywhere?', options: ['Center of chest', 'Left side', 'Right side', 'Radiates to arm/back'] },
+        { id: 'onset', question: 'When did the chest pain start?', options: ['Suddenly today', '1-2 hours ago', 'After physical effort'] },
+        { id: 'character', question: 'What does the discomfort feel like?', options: ['Heavy crushing pressure', 'Sharp stabbing pain', 'Burning heartburn'] },
+        { id: 'severity', question: 'Rate the severity of your chest pain (1-10):', options: ['Mild (1-3)', 'Moderate (4-6)', 'Severe (7-10)'] },
+      ];
+    } else if (cLower.includes('stomach') || cLower.includes('abdomen') || cLower.includes('pet') || cLower.includes('belly') || cLower.includes('cramps') || cLower.includes('vomit') || cLower.includes('nausea')) {
+      adaptiveQuestions = isHi ? [
+        { id: 'site', question: 'पेट में दर्द मुख्य रूप से किस हिस्से में हो रहा है?', options: ['ऊपरी पेट', 'निचला पेट', 'दाहिने तरफ', 'पूरे पेट में'] },
+        { id: 'onset', question: 'पेट का दर्द कब शुरू हुआ?', options: ['आज ही', 'कल से', 'खाने के बाद'] },
+        { id: 'character', question: 'दर्द कैसा महसूस होता है?', options: ['जलन (Acidity)', 'ऐंठन / मरोड़', 'मीठा दर्द'] },
+        { id: 'severity', question: 'दर्द की तीव्रता 1 से 10 के पैमाने पर बताएं:', options: ['हल्का (1-3)', 'मध्यम (4-6)', 'गंभीर (7-10)'] },
+      ] : [
+        { id: 'site', question: 'Where in your stomach is the pain located?', options: ['Upper stomach', 'Lower stomach', 'Right side', 'All over stomach'] },
+        { id: 'onset', question: 'When did the stomach pain start?', options: ['Today', 'Yesterday', 'After eating food'] },
+        { id: 'character', question: 'What does the pain feel like?', options: ['Burning / Reflux', 'Sharp cramping', 'Dull ache / Bloating'] },
+        { id: 'severity', question: 'Rate the severity of your stomach pain (1-10):', options: ['Mild (1-3)', 'Moderate (4-6)', 'Severe (7-10)'] },
+      ];
+    } else if (cLower.includes('fever') || cLower.includes('bukhar') || cLower.includes('temp') || cLower.includes('feverish')) {
+      adaptiveQuestions = isHi ? [
+        { id: 'site', question: 'क्या आपको तेज बुखार महसूस हो रहा है या हल्का असर है?', options: ['हल्का (99-100°F)', 'तेज (101-103°F)', 'बहुत तेज (>103°F)'] },
+        { id: 'onset', question: 'यह बुखार कब से और कैसे शुरू हुआ?', options: ['आज ही', '1-2 दिन से', '3 दिन से ज्यादा'] },
+        { id: 'associated', question: 'क्या बुखार के साथ इनमें से कोई अन्य लक्षण हैं?', options: ['कंपकंपी / ठंड लगना', 'सिरदर्द और बदन दर्द', 'खांसी और गला खराब'] },
+        { id: 'severity', question: 'लक्षणों की गंभीरता बताएं (1-10):', options: ['हल्का (1-3)', 'मध्यम (4-6)', 'गंभीर (7-10)'] },
+      ] : [
+        { id: 'site', question: 'How high is your temperature or fever intensity?', options: ['Mild (99-100°F)', 'High (101-103°F)', 'Very High (>103°F)'] },
+        { id: 'onset', question: 'When did your fever begin?', options: ['Today', '1-2 days ago', 'More than 3 days ago'] },
+        { id: 'associated', question: 'Are you experiencing any associated symptoms with the fever?', options: ['Chills / Shivering', 'Headache & Body ache', 'Cough & Sore Throat'] },
+        { id: 'severity', question: 'Rate the overall severity of symptoms (1-10):', options: ['Mild (1-3)', 'Moderate (4-6)', 'Severe (7-10)'] },
+      ];
+    } else if (cLower.includes('headache') || cLower.includes('head') || cLower.includes('sir dard')) {
+      adaptiveQuestions = isHi ? [
+        { id: 'site', question: 'सिरदर्द मुख्य रूप से कहाँ हो रहा है?', options: ['पूरे सिर में', 'माथे पर', 'एक तरफ (माइग्रेन)', 'गर्दन के पास'] },
+        { id: 'onset', question: 'सिरदर्द कैसे शुरू हुआ?', options: ['अचानक तेज दर्द', 'धीरे-धीरे बढ़ा', 'तनाव के बाद'] },
+        { id: 'severity', question: 'दर्द की तीव्रता 1 से 10 के पैमाने पर बताएं:', options: ['हल्का (1-3)', 'मध्यम (4-6)', 'गंभीर (7-10)'] },
+      ] : [
+        { id: 'site', question: 'Where is the headache located?', options: ['Entire head', 'Forehead / Temples', 'One side (Migraine)', 'Back of head / Neck'] },
+        { id: 'onset', question: 'How did the headache start?', options: ['Suddenly severe', 'Gradually worsening', 'After stress / fatigue'] },
+        { id: 'severity', question: 'Rate the pain severity (1-10):', options: ['Mild (1-3)', 'Moderate (4-6)', 'Severe (7-10)'] },
+      ];
+    } else {
+      adaptiveQuestions = isHi ? [
+        { id: 'onset', question: `${cleanLabel} की समस्या कब से और कैसे शुरू हुई?`, options: ['आज ही', '1-2 दिन से', '1 हफ्ते से ज्यादा'] },
+        { id: 'character', question: 'यह तकलीफ कैसी महसूस होती है?', options: ['तेज चुभन', 'हल्का दर्द', 'सूजन / अकड़न'] },
+        { id: 'severity', question: 'तकलीफ की गंभीरता बताएं (1-10):', options: ['हल्का (1-3)', 'मध्यम (4-6)', 'गंभीर (7-10)'] },
+      ] : [
+        { id: 'onset', question: `When and how did your ${cleanLabel} begin?`, options: ['Suddenly today', '1-2 days ago', 'More than a week ago'] },
+        { id: 'character', question: `What does the ${cleanLabel} feel like?`, options: ['Sharp stabbing pain', 'Dull ache', 'Stiffness & discomfort'] },
+        { id: 'severity', question: `Rate the severity of your ${cleanLabel} (1-10):`, options: ['Mild (1-3)', 'Moderate (4-6)', 'Severe (7-10)'] },
+      ];
+    }
 
     return res.json({
       success: true,
       data: {
-        adaptiveQuestions: fallbackQuestions,
+        adaptiveQuestions,
         redFlagsDetected: [],
       },
     });
@@ -963,12 +1030,14 @@ export function parseSocratesFromText(text: string, existing: SocratesData = {})
   }
 
   // Onset
-  if (t.includes('yesterday') || t.includes('1 day') || t.includes('24 hour')) res.onset = '1 day (Since yesterday)';
-  else if (t.includes('today') || t.includes('morning') || t.includes('few hours') || t.includes('started today')) res.onset = 'Started today';
-  else if (t.includes('2 days') || t.includes('3 days') || t.includes('couple of days')) res.onset = '2-3 days ago';
-  else if (t.includes('week') || t.includes('multiple days')) res.onset = 'More than a week ago';
+  if (t.includes('last night') || t.includes('night') || t.includes('overnight')) res.onset = 'Since last night';
+  else if (t.includes('yesterday') || t.includes('1 day') || t.includes('24 hour') || t.includes('last evening')) res.onset = '1 day (Since yesterday)';
+  else if (t.includes('today') || t.includes('morning') || t.includes('few hours') || t.includes('started today') || t.includes('recently')) res.onset = 'Started today';
+  else if (t.includes('2 days') || t.includes('3 days') || t.includes('couple of days') || t.includes('few days')) res.onset = '2-3 days ago';
+  else if (t.includes('week') || t.includes('multiple days') || t.includes('days') || t.includes('month')) res.onset = 'More than a week ago';
   else if (t.includes('sudden')) res.onset = 'Sudden onset';
   else if (t.includes('gradual')) res.onset = 'Gradual onset';
+  else if (!res.onset && text.trim()) res.onset = text.trim();
 
   // Character
   if (t.includes('burning') || t.includes('acidity') || t.includes('reflux')) res.character = 'Burning';
@@ -977,12 +1046,14 @@ export function parseSocratesFromText(text: string, existing: SocratesData = {})
   else if (t.includes('throbbing') || t.includes('pulsat')) res.character = 'Throbbing';
   else if (t.includes('itchy') || t.includes('itching')) res.character = 'Itchy & Irritated';
   else if (t.includes('dull') || t.includes('ache')) res.character = 'Dull ache';
+  else if (!res.character && res.onset && text.trim()) res.character = text.trim();
 
   // Radiation
   if (t.includes('left arm') || t.includes('jaw') || t.includes('spreads to left')) res.radiation = 'Spreads to left arm / jaw';
   else if (t.includes('back') || t.includes('moves to back')) res.radiation = 'Moves to back';
   else if (t.includes('shoulder') || t.includes('chest')) res.radiation = 'Moves to chest / shoulder';
   else if (t.includes('no') || t.includes('none') || t.includes('stays') || t.includes('without radiation') || t.includes('not radiating')) res.radiation = 'None reported';
+  else if (!res.radiation && res.character && text.trim()) res.radiation = text.trim();
 
   // Associated Symptoms
   if (t.includes('nausea') || t.includes('nauseous') || t.includes('sick')) res.associatedSymptoms = res.associatedSymptoms ? (res.associatedSymptoms.includes('Nausea') ? res.associatedSymptoms : `${res.associatedSymptoms}, Nausea`) : 'Nausea';
@@ -992,6 +1063,7 @@ export function parseSocratesFromText(text: string, existing: SocratesData = {})
   if (t.includes('sweat')) res.associatedSymptoms = res.associatedSymptoms ? (res.associatedSymptoms.includes('Sweating') ? res.associatedSymptoms : `${res.associatedSymptoms}, Sweating`) : 'Sweating';
   if (t.includes('dizzy') || t.includes('giddiness') || t.includes('lighthead')) res.associatedSymptoms = res.associatedSymptoms ? (res.associatedSymptoms.includes('Dizziness') ? res.associatedSymptoms : `${res.associatedSymptoms}, Dizziness`) : 'Dizziness';
   if (t.includes('none') || t.includes('no other')) res.associatedSymptoms = res.associatedSymptoms || 'None reported';
+  else if (!res.associatedSymptoms && res.radiation && text.trim()) res.associatedSymptoms = text.trim();
 
   // Triggers / Exacerbating factors
   if (t.includes('worse after eating') || t.includes('after food') || t.includes('after eating') || t.includes('eating')) res.triggers = 'Worse after eating';
@@ -999,6 +1071,7 @@ export function parseSocratesFromText(text: string, existing: SocratesData = {})
   else if (t.includes('exertion') || t.includes('walking') || t.includes('exercise')) res.triggers = 'Worse with exertion';
   else if (t.includes('lying flat') || t.includes('lying down')) res.triggers = 'Worse when lying flat';
   else if (t.includes('soap') || t.includes('cosmetic') || t.includes('medicine') || t.includes('food')) res.triggers = 'New product / exposure';
+  else if (!res.triggers && res.associatedSymptoms && text.trim()) res.triggers = text.trim();
 
   // Severity
   const numMatch = t.match(/\b([1-9]|10)\b/);
@@ -1012,7 +1085,7 @@ export function parseSocratesFromText(text: string, existing: SocratesData = {})
     res.severity = '5/10 (Moderate)';
   } else if (t.includes('mild') || t.includes('noticeable')) {
     res.severity = '3/10 (Mild)';
-  }
+  } else if (!res.severity && res.triggers && text.trim()) res.severity = text.trim();
 
   return res;
 }

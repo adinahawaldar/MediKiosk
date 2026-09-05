@@ -296,12 +296,18 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
           });
           const docData = await resDoc.json();
 
-          const liveIntakeItem = docData.data || {
-            _id: `live-kiosk-${Date.now()}`,
+          const nowIso = new Date().toISOString();
+          const pName = patientProfile?.name || `${patientProfile?.firstName || 'Rahul'} ${patientProfile?.lastName || 'Sharma'}`.trim();
+          const [fName, ...lNames] = pName.split(' ');
+          const lName = lNames.join(' ') || 'Patient';
+          const triageVal = data.data?.triage || docData?.data?.priority?.toUpperCase() || 'GREEN';
+
+          const liveIntakeItem = {
+            _id: docData?.data?.consultationId || `live-kiosk-${Date.now()}`,
             patientId: {
-              _id: `p-live-${Date.now()}`,
-              firstName: patientProfile?.name?.split(' ')[0] || patientProfile?.firstName || 'Kiosk',
-              lastName: patientProfile?.name?.split(' ').slice(1).join(' ') || patientProfile?.lastName || 'Patient',
+              _id: docData?.data?.patientId || `p-live-${Date.now()}`,
+              firstName: fName || 'Kiosk',
+              lastName: lName || 'Patient',
               phone: patientProfile?.mobile || patientProfile?.phone || `+91 98765 ${Math.floor(10000 + Math.random() * 90000)}`,
               gender: patientProfile?.gender || 'Adult',
               hospitalId: `HOSP-LIVE-${Math.floor(100 + Math.random() * 900)}`,
@@ -309,27 +315,27 @@ export const MediKioskIntake: React.FC<MediKioskIntakeProps> = ({ onBackToWelcom
               medicalHistory: patientProfile?.medicalHistory || ['Kiosk Intake Completed'],
             },
             doctorId: {
-              _id: 'doc-rao',
-              firstName: 'Ananya',
-              lastName: 'Rao',
-              specialization: 'General Medicine',
-              department: 'Outpatient Clinic',
+              _id: docData?.data?.doctorId || 'doc-rao',
+              firstName: docData?.data?.doctorName ? docData.data.doctorName.replace('Dr. ', '').split(' ')[0] : 'Ananya',
+              lastName: docData?.data?.doctorName ? docData.data.doctorName.replace('Dr. ', '').split(' ').slice(1).join(' ') : 'Rao',
+              specialization: docData?.data?.department || 'General Medicine',
+              department: docData?.data?.department || 'Outpatient Clinic',
             },
             symptoms: mappedSymptoms.map(s => `${s.bodyRegion}: ${s.symptom}`),
-            diagnosis: `MediKiosk Intake (${data.data?.triage || 'GREEN'})`,
+            diagnosis: `MediKiosk Intake (${triageVal})`,
             treatmentPlan: 'Physician evaluation pending.',
             status: 'open',
-            priority: (data.data?.triage || 'GREEN').toLowerCase() === 'red' ? 'emergency' : (data.data?.triage || 'GREEN').toLowerCase() === 'amber' ? 'urgent' : 'routine',
-            triageScore: data.data?.triageScore ?? (data.data?.triage === 'RED' ? 90 : data.data?.triage === 'AMBER' ? 65 : 35),
-            triageNotes: `LIVE KIOSK INTAKE: ${data.data?.triage || 'GREEN'} priority. ${mappedSymptoms.map(s => `${s.bodyRegion}: ${s.symptom}`).join(', ')}`,
+            priority: triageVal === 'RED' || docData?.data?.priority === 'emergency' ? 'emergency' : triageVal === 'AMBER' || docData?.data?.priority === 'urgent' ? 'urgent' : 'routine',
+            triageScore: docData?.data?.triageScore ?? (data.data?.triageScore ?? (triageVal === 'RED' ? 90 : triageVal === 'AMBER' ? 65 : 35)),
+            triageNotes: docData?.data?.triageReason || `LIVE KIOSK INTAKE: ${triageVal} priority. ${mappedSymptoms.map(s => `${s.bodyRegion}: ${s.symptom}`).join(', ')}`,
             triageAIEvaluated: true,
-            soapNotes: {
+            soapNotes: docData?.data?.soapNotes || {
               subjective: `CHIEF COMPLAINT: ${mappedSymptoms.map(s => `${s.bodyRegion}: ${s.symptom}`).join(', ')}`,
               objective: `Kiosk Vitals: Temp ${temperature || '98.6'}°F. Digital check-in verified.`,
               assessment: `Live Kiosk Intake completed. Patient queued for physician consultation.`,
               plan: `Proceed with physical examination.`,
             },
-            createdAt: new Date().toISOString(),
+            createdAt: nowIso,
           };
 
           window.dispatchEvent(new CustomEvent('kiosk-intake-submitted', { detail: liveIntakeItem }));

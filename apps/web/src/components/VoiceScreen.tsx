@@ -441,6 +441,48 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
       if (resData.success && resData.data) {
         setTicketInfo(resData.data);
       }
+
+      const nowIso = new Date().toISOString();
+      const liveIntakeItem = {
+        _id: resData?.data?.consultationId || `live-kiosk-${Date.now()}`,
+        patientId: {
+          _id: resData?.data?.patientId || `p-live-${Date.now()}`,
+          firstName: 'Rahul',
+          lastName: 'Sharma',
+          phone: '+91 98765 43210',
+          gender: 'Male',
+          hospitalId: 'HOSP-LIVE-301',
+          allergies: ['None known'],
+          medicalHistory: ['Voice Intake Completed'],
+        },
+        doctorId: {
+          _id: resData?.data?.doctorId || 'doc-rao',
+          firstName: 'Ananya',
+          lastName: 'Rao',
+          specialization: 'General Medicine',
+          department: 'Outpatient Clinic',
+        },
+        symptoms: [complaint, ...Object.values(socratesMap)],
+        diagnosis: `MediKiosk Voice Intake (${triage})`,
+        treatmentPlan: 'Physician evaluation pending.',
+        status: 'open',
+        priority: triage === 'RED' ? 'emergency' : triage === 'AMBER' ? 'urgent' : 'routine',
+        triageScore: triage === 'RED' ? 90 : triage === 'AMBER' ? 65 : 35,
+        triageNotes: `VOICE INTAKE: ${triage} priority. Chief Complaint: ${complaint}`,
+        triageAIEvaluated: true,
+        soapNotes: resData?.data?.soapNotes || {
+          subjective: `CHIEF COMPLAINT: ${complaint}`,
+          objective: 'Voice AI Intake completed.',
+          assessment: `Priority: ${triage}`,
+          plan: 'Physician consultation pending.',
+        },
+        createdAt: nowIso,
+      };
+
+      window.dispatchEvent(new CustomEvent('kiosk-intake-submitted', { detail: liveIntakeItem }));
+      try {
+        localStorage.setItem('medikiosk_latest_submission', JSON.stringify(liveIntakeItem));
+      } catch (e) {}
     } catch (err) {
       console.warn(
         'Failed to submit consultation to doctor DB:',
@@ -457,7 +499,7 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
       (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      setSocratesError(localized('I could not recognize that answer. Tap the microphone to retry or choose an option.'));
+      setSocratesError(localized('I could not recognize that answer. Tap the microphone to speak your answer again.'));
       return;
     }
 
@@ -510,7 +552,7 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
       recognition.onerror = (event: any) => {
         setIsSocratesListening(false);
         socratesRecognitionRef.current = null;
-        setSocratesError(event?.error === 'not-allowed' ? localized('Microphone permission is required. Tap an option or allow microphone access and retry.') : localized('I could not recognize that answer. Tap the microphone to retry or choose an option.'));
+        setSocratesError(event?.error === 'not-allowed' ? localized('Microphone permission is required. Allow microphone access and tap to speak again.') : localized('I could not recognize that answer. Tap the microphone to speak your answer again.'));
         console.warn('SOCRATES answer recognition error:', event?.error || 'unknown');
       };
       recognition.onend = () => {
@@ -522,7 +564,7 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
       recognition.start();
     } catch (error) {
       setIsSocratesListening(false);
-      setSocratesError(localized('I could not recognize that answer. Tap the microphone to retry or choose an option.'));
+      setSocratesError(localized('I could not recognize that answer. Tap the microphone to speak your answer again.'));
       console.warn('SOCRATES answer microphone error:', error);
     }
   };
@@ -819,29 +861,30 @@ export const VoiceScreen: React.FC<VoiceScreenProps> = ({ language = 'hi', onBac
                   </div>
                 )}
 
-                <div className="flex flex-col space-y-2.5 w-full max-w-sm mx-auto">
-                  {socratesQuestions[
-                    currentQuestionIdx
-                  ].options.map((opt, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() =>
-                        handleAnswerSocrates(opt)
-                      }
-                      disabled={isNormalizingAnswer}
-                      className="w-full min-h-12 py-3.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-900 hover:text-white border border-slate-300 font-bold text-sm text-slate-800 transition-all cursor-pointer active:scale-95 text-center shadow-sm disabled:opacity-50"
-                    >
-                      {opt}
-                    </button>
-                  ))}
-                </div>
+                <div className="flex flex-col items-center justify-center space-y-4 py-4 w-full max-w-sm mx-auto">
+                  <button
+                    type="button"
+                    onClick={startSocratesAnswerListening}
+                    disabled={isSpeaking || isNormalizingAnswer}
+                    className={`w-20 h-20 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-lg active:scale-95 disabled:opacity-50 ${
+                      isSocratesListening
+                        ? 'bg-rose-600 text-white animate-pulse ring-4 ring-rose-200'
+                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                    }`}
+                  >
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </svg>
+                  </button>
 
-                <p className="text-xs text-slate-400 font-medium">
-                  {isSocratesListening
-                    ? 'Listening for your spoken answer...'
-                    : 'Speak your answer after the question, or tap an option above.'}
-                </p>
+                  <p className="text-xs font-semibold text-slate-600 text-center">
+                    {isSpeaking
+                      ? (language === 'hi' ? 'सवाल पूछ रहे हैं...' : 'Asking question...')
+                      : isSocratesListening
+                      ? (language === 'hi' ? 'जवाब सुन रहे हैं... बोलिए' : 'Listening for your spoken answer... Speak now.')
+                      : (language === 'hi' ? 'अपना जवाब बोलने के लिए माइक दबाएं' : 'Tap microphone to speak your answer')}
+                  </p>
+                </div>
               </div>
             )}
 

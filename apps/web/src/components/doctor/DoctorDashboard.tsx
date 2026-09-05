@@ -1009,10 +1009,26 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
   const fetchQueue = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:5000/api/v1/doctor/consultations');
+      const res = await fetch('/api/v1/doctor/consultations');
       const data = await res.json();
       if (data.success && data.data.consultations?.length > 0) {
-        setConsultations(data.data.consultations);
+        let fetchedList: ConsultationItem[] = data.data.consultations;
+        
+        try {
+          const stored = localStorage.getItem('medikiosk_latest_submission');
+          if (stored) {
+            const liveItem = JSON.parse(stored);
+            if (liveItem && (liveItem._id || liveItem.consultationId)) {
+              const id = liveItem._id || liveItem.consultationId;
+              const exists = fetchedList.some(c => c._id === id || (c.patientId?.phone && liveItem.patientId?.phone && c.patientId?.phone === liveItem.patientId?.phone));
+              if (!exists) {
+                fetchedList = [liveItem, ...fetchedList];
+              }
+            }
+          }
+        } catch (e) {}
+
+        setConsultations(fetchedList);
       }
     } catch (err: any) {
       console.warn('Backend API connection offline, utilizing demo queue state');
@@ -1089,13 +1105,56 @@ export const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ onBackToKiosk 
           if (stored) liveData = JSON.parse(stored);
         } catch (e) {}
       }
-      if (liveData && liveData._id) {
+      if (liveData) {
+        const id = liveData._id || liveData.consultationId || `live-kiosk-${Date.now()}`;
+        const patientObj = typeof liveData.patientId === 'object' ? liveData.patientId : {
+          _id: liveData.patientId || `p-live-${Date.now()}`,
+          firstName: 'Kiosk',
+          lastName: 'Patient',
+          phone: '+91 98765 43210',
+          gender: 'Adult',
+          hospitalId: 'HOSP-LIVE-101',
+          allergies: ['None reported'],
+          medicalHistory: ['Kiosk Check-in'],
+        };
+        const doctorObj = typeof liveData.doctorId === 'object' ? liveData.doctorId : {
+          _id: 'doc-rao',
+          firstName: 'Ananya',
+          lastName: 'Rao',
+          specialization: 'General Medicine',
+          department: 'Outpatient Clinic',
+        };
+        const formattedItem: ConsultationItem = {
+          _id: id,
+          patientId: patientObj,
+          doctorId: doctorObj,
+          symptoms: Array.isArray(liveData.symptoms) ? liveData.symptoms : [liveData.chiefComplaint || 'Kiosk Consultation Intake'],
+          diagnosis: liveData.diagnosis || `MediKiosk Intake (${(liveData.priority || 'routine').toUpperCase()})`,
+          treatmentPlan: liveData.treatmentPlan || 'Physician consultation pending.',
+          status: liveData.status || 'open',
+          priority: liveData.priority || 'routine',
+          triageScore: liveData.triageScore ?? 50,
+          triageNotes: liveData.triageNotes || 'Live Kiosk Intake submitted.',
+          triageAIEvaluated: true,
+          soapNotes: liveData.soapNotes || {
+            subjective: `CHIEF COMPLAINT: ${liveData.chiefComplaint || 'Kiosk Check-in'}`,
+            objective: 'Kiosk Vitals: Digital check-in verified.',
+            assessment: 'Live Kiosk Intake completed. Patient queued for physician consultation.',
+            plan: 'Proceed with physical examination.',
+          },
+          createdAt: liveData.createdAt || new Date().toISOString(),
+        };
+
         setConsultations(prev => {
-          const exists = prev.some(c => c._id === liveData._id || c.patientId?.phone === liveData.patientId?.phone);
-          if (exists) return prev;
-          return [liveData, ...prev];
+          const existsIndex = prev.findIndex(c => c._id === id || (c.patientId?.phone && c.patientId?.phone === patientObj.phone));
+          if (existsIndex !== -1) {
+            const updated = [...prev];
+            updated[existsIndex] = formattedItem;
+            return updated;
+          }
+          return [formattedItem, ...prev];
         });
-        setSelectedConsultation(liveData);
+        setSelectedConsultation(formattedItem);
       }
     };
 

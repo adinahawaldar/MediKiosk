@@ -90,14 +90,40 @@ def generate_hybrid_questions(chief_complaint: str, mode: str = "allopathy", lan
                         { "id": "severity", "question": "On a scale of 1–10, how severe is the itching or discomfort?", "options": ["Mild (1-3)", "Moderate (4-6)", "Severe (7-10)"] }
                     ]
                 }
-            else:
+            elif "knee" in c_text or "leg" in c_text or "joint" in c_text or "back" in c_text or "arm" in c_text or "shoulder" in c_text or "ankle" in c_text or "hip" in c_text or "thigh" in c_text or "foot" in c_text or "elbow" in c_text or "wrist" in c_text or "peeth" in c_text or "pith" in c_text:
+                clean_label = chief_complaint.split(":")[-1].strip() if ":" in chief_complaint else chief_complaint.strip()
                 return {
                     "adaptiveQuestions": [
-                        { "id": "site", "question": "Where is the main location of your symptom or pain?", "options": ["Chest", "Abdomen", "Head", "Back/Joints"] },
-                        { "id": "onset", "question": "When did the symptoms begin?", "options": ["Sudden today", "Gradual over days", "Intermittent"] },
-                        { "id": "character", "question": "What does the discomfort feel like?", "options": ["Sharp pain", "Dull ache", "Burning", "Stiffness"] },
-                        { "id": "radiation", "question": "Does the discomfort move anywhere else?", "options": ["Spreads to adjacent area", "Moves to back", "No radiation"] },
-                        { "id": "severity", "question": "Rate the severity of your symptoms (1-10):", "options": ["Mild (1-3)", "Moderate (4-6)", "Severe (7-10)"] }
+                        { "id": "onset", "question": f"When and how did your {clean_label} begin?", "options": ["Suddenly today", "1-2 days ago", "More than a week ago", "After an injury/fall"] },
+                        { "id": "character", "question": "What does the discomfort feel like?", "options": ["Sharp stabbing pain", "Dull ache", "Stiffness & swelling", "Pain when walking/moving"] },
+                        { "id": "associated", "question": "Are you experiencing any associated symptoms?", "options": ["Swelling / Puffiness", "Redness / Warmth", "Difficulty bearing weight", "No other symptoms"] },
+                        { "id": "severity", "question": "Rate the severity of your pain (1-10):", "options": ["Mild (1-3)", "Moderate (4-6)", "Severe (7-10)"] }
+                    ]
+                }
+            elif "fever" in c_text or "bukhar" in c_text or "temp" in c_text or "feverish" in c_text:
+                return {
+                    "adaptiveQuestions": [
+                        { "id": "site", "question": "How high is your temperature or fever intensity?", "options": ["Mild (99-100°F)", "High (101-103°F)", "Very High (>103°F)"] },
+                        { "id": "onset", "question": "When did your fever begin?", "options": ["Today", "1-2 days ago", "More than 3 days ago"] },
+                        { "id": "associated", "question": "Are you experiencing any associated symptoms with the fever?", "options": ["Chills / Shivering", "Headache & Body ache", "Cough & Sore Throat"] },
+                        { "id": "severity", "question": "Rate the overall severity of symptoms (1-10):", "options": ["Mild (1-3)", "Moderate (4-6)", "Severe (7-10)"] }
+                    ]
+                }
+            elif "headache" in c_text or "head" in c_text or "sir" in c_text:
+                return {
+                    "adaptiveQuestions": [
+                        { "id": "site", "question": "Where is the headache located?", "options": ["Entire head", "Forehead / Temples", "One side (Migraine)", "Back of head / Neck"] },
+                        { "id": "onset", "question": "How did the headache start?", "options": ["Suddenly severe", "Gradually worsening", "After stress / fatigue"] },
+                        { "id": "severity", "question": "Rate the pain severity (1-10):", "options": ["Mild (1-3)", "Moderate (4-6)", "Severe (7-10)"] }
+                    ]
+                }
+            else:
+                clean_label = chief_complaint.split(":")[-1].strip() if ":" in chief_complaint else (chief_complaint.strip() or "symptom")
+                return {
+                    "adaptiveQuestions": [
+                        { "id": "onset", "question": f"When and how did your {clean_label} begin?", "options": ["Suddenly today", "1-2 days ago", "More than a week ago"] },
+                        { "id": "character", "question": f"What does the {clean_label} feel like?", "options": ["Sharp stabbing pain", "Dull ache", "Stiffness & discomfort"] },
+                        { "id": "severity", "question": f"Rate the severity of your {clean_label} (1-10):", "options": ["Mild (1-3)", "Moderate (4-6)", "Severe (7-10)"] }
                     ]
                 }
 

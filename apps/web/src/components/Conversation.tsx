@@ -106,8 +106,9 @@ export const Conversation: React.FC<ConversationProps> = ({
 
   // Step 4: Patient Confirms Doctor Summary
   const handleConfirmSummary = async () => {
+    let docResData: any = null;
     try {
-      await fetch('http://localhost:5000/api/v1/medikiosk/submit-to-doctor', {
+      const res = await fetch('/api/v1/medikiosk/submit-to-doctor', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -128,9 +129,56 @@ export const Conversation: React.FC<ConversationProps> = ({
           redFlags: extractedInfo?.redFlags || [],
         }),
       });
+      docResData = await res.json();
     } catch (e) {
       console.warn('Consultation submission to doctor DB error:', e);
     }
+
+    const nowIso = new Date().toISOString();
+    const pName = patientIdInput || 'Rahul Sharma';
+    const [fName, ...lNames] = pName.split(' ');
+    const lName = lNames.join(' ') || 'Patient';
+
+    const liveIntakeItem = {
+      _id: docResData?.data?.consultationId || `live-kiosk-${Date.now()}`,
+      patientId: {
+        _id: docResData?.data?.patientId || `p-live-${Date.now()}`,
+        firstName: fName,
+        lastName: lName,
+        phone: '+91 98765 43210',
+        gender: 'Male',
+        hospitalId: 'HOSP-LIVE-401',
+        allergies: ['None known'],
+        medicalHistory: ['Text Q&A Intake Completed'],
+      },
+      doctorId: {
+        _id: docResData?.data?.doctorId || 'doc-rao',
+        firstName: 'Ananya',
+        lastName: 'Rao',
+        specialization: 'General Medicine',
+        department: 'Outpatient Clinic',
+      },
+      symptoms: extractedInfo?.symptoms || [textInput || 'Consultation Intake'],
+      diagnosis: `MediKiosk Intake (${triageLevel || 'GREEN'})`,
+      treatmentPlan: 'Physician evaluation pending.',
+      status: 'open',
+      priority: triageLevel === 'RED' ? 'emergency' : triageLevel === 'AMBER' ? 'urgent' : 'routine',
+      triageScore: triageLevel === 'RED' ? 90 : triageLevel === 'AMBER' ? 65 : 35,
+      triageNotes: `TEXT Q&A INTAKE: ${triageLevel || 'GREEN'} priority. ${extractedInfo?.chiefComplaint || textInput}`,
+      triageAIEvaluated: true,
+      soapNotes: {
+        subjective: `CHIEF COMPLAINT: ${extractedInfo?.chiefComplaint || textInput}`,
+        objective: 'Kiosk Q&A intake verified.',
+        assessment: 'Live Kiosk Intake completed. Patient queued for physician consultation.',
+        plan: 'Proceed with physical examination.',
+      },
+      createdAt: nowIso,
+    };
+
+    window.dispatchEvent(new CustomEvent('kiosk-intake-submitted', { detail: liveIntakeItem }));
+    try {
+      localStorage.setItem('medikiosk_latest_submission', JSON.stringify(liveIntakeItem));
+    } catch (e) {}
 
     setStep('token_ready');
     if (onComplete) onComplete({ extractedInfo, abhaRecord, opdToken, roomNumber });
